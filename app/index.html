@@ -1,0 +1,276 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes"><meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"><meta name="apple-mobile-web-app-title" content="starlit">
+<meta name="theme-color" content="#0F0D0B"><link rel="apple-touch-icon" href="icon.png"><link rel="icon" href="icon-512.png">
+<title>starlit</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500&display=swap">
+<style>
+:root {
+  --bg: #0F0D0B; --raise: #1A1714; --line: rgba(240,233,223,.12);
+  --fg: #F0E9DF; --muted: #9B9083; --amber: rgb(244,212,160); --glow: rgb(222,180,118);
+  --font: 'Geist', ui-sans-serif, system-ui, -apple-system, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--font); font-weight: 400; overflow: hidden;
+  -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; text-transform: lowercase; }
+.app { position: relative; height: 100%; max-width: 440px; margin: 0 auto; overflow: hidden; }
+.screen { position: absolute; inset: 0; display: flex; flex-direction: column;
+  padding-left: max(28px, env(safe-area-inset-left, 0px)); padding-right: max(28px, env(safe-area-inset-right, 0px));
+  padding-top: max(56px, calc(env(safe-area-inset-top, 0px) + 30px)); padding-bottom: max(40px, calc(env(safe-area-inset-bottom, 0px) + 16px));
+  animation: in .5s ease both; }
+@keyframes in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.a { color: var(--amber); }
+h1 { font-weight: 400; font-size: clamp(34px, 9.5vw, 42px); line-height: 1.12; letter-spacing: -.03em; margin: 0; text-wrap: balance; }
+.small { font-size: 15px; color: var(--muted); letter-spacing: -.005em; margin: 0; }
+.label { font-size: 13px; color: var(--muted); letter-spacing: .04em; margin: 0; }
+.grow { flex: 1; }
+.btn { appearance: none; border: 0; font: 500 17px var(--font); letter-spacing: -.01em; text-transform: lowercase;
+  background: var(--fg); color: var(--bg); border-radius: 999px; padding: 17px 24px; width: 100%; cursor: pointer; }
+.btn:active { transform: scale(.98); }
+.btn.ghost { background: transparent; color: var(--muted); font-weight: 400; font-size: 15px; padding: 12px; }
+.stack { display: flex; flex-direction: column; gap: 12px; }
+.opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.opt { appearance: none; border: 1px solid var(--line); background: var(--raise); color: var(--fg); font: 400 22px var(--font);
+  letter-spacing: -.02em; border-radius: 22px; padding: 22px 10px; cursor: pointer; font-variant-numeric: tabular-nums; }
+.opt.on { border-color: var(--amber); color: var(--amber); }
+.sky { position: absolute; inset: 0; pointer-events: none; }
+.star { position: absolute; width: 6px; height: 6px; margin: -3px 0 0 -3px; border-radius: 50%; background: var(--fg); box-shadow: 0 0 10px 3px rgba(222,180,118,.25); }
+.star.amb { background: var(--amber); box-shadow: 0 0 22px 8px rgba(222,180,118,.45); }
+.star.big { width: 14px; height: 14px; margin: -7px 0 0 -7px; }
+.star.empty { background: transparent; border: 1.5px dashed rgba(244,212,160,.55); box-shadow: none; width: 16px; height: 16px; margin: -8px 0 0 -8px; animation: pulse 2.4s ease-in-out infinite; }
+@keyframes pulse { 50% { opacity: .35; } }
+.star.light { animation: light 1.8s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes light { 0% { transform: scale(0); opacity: 0; } 60% { transform: scale(1.8); opacity: 1; } 100% { transform: scale(1); } }
+.card { background: var(--raise); border: 1px solid var(--line); border-radius: 26px; padding: 18px 20px; }
+.skycard { position: relative; height: 230px; overflow: hidden; }
+.row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+.big { font-size: 56px; letter-spacing: -.04em; font-weight: 300; font-variant-numeric: tabular-nums; line-height: 1; }
+.dots { display: flex; gap: 8px; } .dot { width: 9px; height: 9px; border-radius: 50%; background: rgba(240,233,223,.18); }
+.dot.k { background: var(--fg); } .dot.t { border: 1.5px dashed var(--amber); background: transparent; }
+.clock { text-align: center; font-size: 84px; font-weight: 300; letter-spacing: -.05em; margin-top: 18px; font-variant-numeric: tabular-nums; }
+.toast { position: absolute; left: 50%; bottom: calc(120px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--raise);
+  border: 1px solid var(--line); border-radius: 999px; padding: 10px 18px; font-size: 14px; color: var(--muted); white-space: nowrap; }
+.shake { animation: shake .45s ease; }
+@keyframes shake { 20% { transform: translateX(-7px); } 45% { transform: translateX(6px); } 70% { transform: translateX(-3px); } }
+.sheet { position: absolute; left: 0; right: 0; bottom: 0; background: var(--raise); border-top: 1px solid var(--line); border-radius: 28px 28px 0 0;
+  padding: 26px 28px calc(28px + env(safe-area-inset-bottom, 0px)); animation: up .35s ease both; }
+@keyframes up { from { transform: translateY(100%); } to { transform: none; } }
+.morning { background: linear-gradient(180deg, #1D1814 0%, #2A2119 55%, #3A2C1E 100%); }
+.tip { position: absolute; background: var(--raise); border: 1px solid var(--line); border-radius: 12px; padding: 7px 11px; font-size: 13px;
+  color: var(--fg); transform: translate(-50%, -140%); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hot { position: absolute; top: 0; right: 0; width: 70px; height: 70px; z-index: 20; }
+.menu { position: absolute; inset: 0; z-index: 30; background: rgba(15,13,11,.96); padding: calc(env(safe-area-inset-top, 0px) + 30px) 24px 30px;
+  display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.menu .opt { font-size: 17px; padding: 14px 16px; border-radius: 16px; text-align: left; }
+</style></head><body>
+<div class="app" id="app"><div class="hot" id="hot" aria-hidden="true"></div><div id="view"></div></div>
+<script>
+const S = { want: '11:00', actual: '1:30', wake: '7:00', kept: 12, broken: false, scene: 'splash' };
+const view = document.getElementById('view');
+const toMin = s => { let [h, m] = s.replace('+', '').split(':').map(Number); h = h === 12 ? 24 : h <= 6 ? h + 24 : h + 12; return h * 60 + m; };
+const esc = s => s.replace(/\*(.+?)\*/g, '<span class="a">$1</span>');
+const pad = n => String(n).padStart(2, '0');
+const nowStr = () => { const d = new Date(); return `${((d.getHours() + 11) % 12) + 1}:${pad(d.getMinutes())}`; };
+function skyHTML(n, opts = {}) {
+  let s = 9 + n, out = ''; const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280; const pts = [];
+  for (let i = 0; i < n; i++) { let x, y, ok, t = 0;
+    do { x = 8 + rnd() * 84; y = (opts.top ?? 10) + rnd() * (opts.h ?? 70); ok = pts.every(p => Math.hypot(p[0] - x, (p[1] - y) * 1.6) > 11); } while (!ok && ++t < 200);
+    pts.push([x, y]); }
+  pts.forEach(([x, y], i) => { const last = i === n - 1, cls = opts.emptyLast && last ? 'star empty' : `star${i % 3 === 2 ? ' big' : ''}${opts.amberLast && last ? ' amb big' : ''}${opts.lightLast && last ? ' light' : ''}`;
+    out += `<div class="${cls}" style="left:${x}%;top:${y}%;opacity:${opts.emptyLast && last ? 1 : (0.55 + (i * 37 % 45) / 100)}"></div>`; });
+  return out;
+}
+function nightDate(i, n) { const d = new Date(); d.setDate(d.getDate() - (n - 1 - i)); return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }).toLowerCase(); }
+const scenes = {
+  splash: () => `<div class="screen"><div class="sky">${skyHTML(1, { top: 30, h: 1, amberLast: true })}</div>
+    <div class="grow"></div><h1>get your <span class="a">nights</span> back.</h1>
+    <p class="small" style="margin:14px 0 34px">a star for every night you put your phone down.</p>
+    <button class="btn" data-go="q1">start</button></div>`,
+  q1: () => question('what time do you *want* to sleep?', ['10:30', '11:00', '11:30', '12:00'], 'want', 'q2'),
+  q2: () => question('and what time does it actually happen?', ['11:30', '12:30', '1:30', '2:00+'], 'actual', 'mirror'),
+  mirror: () => { const h = Math.max(0.5, (toMin(S.actual) - toMin(S.want)) / 60), days = Math.round(h * 365 / 24);
+    const hs = h === 1 ? '1 hour' : `${h % 1 ? h.toFixed(1) : h} hours`;
+    return `<div class="screen"><div class="grow"></div><p class="label">every night</p>
+    <h1 style="margin-top:12px">that's <span class="a">${hs}</span> a night.</h1>
+    <h1 style="color:var(--muted)">about ${days} days a year.</h1><div class="grow"></div>
+    <button class="btn" data-go="commit">get them back</button></div>`; },
+  commit: () => `<div class="screen" style="touch-action:none"><canvas id="cc" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+    <div class="grow" style="flex:.5"></div><div id="ctext"><h1>i'll put my phone down at <span class="a">${S.want}</span>.</h1>
+    <p class="small" style="margin-top:14px">hold the star to commit</p></div><div class="grow"></div>
+    <div id="hold" role="button" tabindex="0" aria-label="hold to commit" style="position:absolute;left:50%;top:70%;width:150px;height:150px;transform:translate(-50%,-50%);border-radius:50%;touch-action:none"></div></div>`,
+  home: () => { const n = S.kept + 1, mins = ((toMin(S.want) - (new Date().getHours() * 60 + new Date().getMinutes()) + 1440) % 1440);
+    const until = mins > 16 * 60 ? 'resting now' : `${Math.floor(mins / 60)}h ${pad(mins % 60)}m`;
+    const dots = Array.from({ length: 7 }, (_, i) => `<span class="dot ${i < 6 ? 'k' : 't'}"></span>`).join('');
+    return `<div class="screen" style="gap:16px"><div class="row"><span class="label">tonight · night ${n}</span><span class="label" data-go="sky" style="cursor:pointer">your sky →</span></div>
+    <div><p class="small">bedtime in</p><div class="big" style="margin-top:6px">${until}</div><p class="small" style="margin-top:10px">phone rests ${S.want} → ${S.wake}</p></div>
+    <div class="card skycard"><div class="sky">${skyHTML(n, { emptyLast: true, top: 14, h: 72 })}</div></div>
+    <div class="card row"><div><div style="font-size:22px;letter-spacing:-.02em">${S.kept} nights kept</div><p class="small" style="margin-top:4px">in a row</p></div><div class="dots">${dots}</div></div>
+    <div class="grow"></div><button class="btn" data-go="phone" data-rest="1">rest now</button></div>`; },
+  phone: () => {
+    const d = new Date(), now = d.getHours() * 60 + d.getMinutes(), bed = toMin(S.want) % 1440, len = ((7 * 60 - bed) + 1440) % 1440 || 480;
+    let el = ((now - bed) + 1440) % 1440, shown = nowStr();
+    if (S.resting && el > len) { el = ((74 - bed) + 1440) % 1440; shown = '1:14'; }
+    const pr = S.resting && el <= len ? el / len : 0, left = len - Math.round(pr * len);
+    const ang = (-90 + 360 * pr) * Math.PI / 180, R = 118, C = 150, sx = C + R * Math.cos(ang), sy = C + R * Math.sin(ang);
+    const arc = pr > 0.002 ? `<path d="M ${C} ${C - R} A ${R} ${R} 0 ${pr > .5 ? 1 : 0} 1 ${sx.toFixed(1)} ${sy.toFixed(1)}" fill="none" stroke="#F0E9DF" stroke-width="5"/>` : '';
+    const apps = ['videos', 'photos', 'chats', 'games', 'shop', 'news'];
+    return `<div class="screen" style="gap:0"><div class="sky" style="opacity:.5">${skyHTML(7, { top: 60, h: 10 })}</div>
+    <div class="row" style="position:relative"><span class="label">night ${S.kept + 1}</span><span class="label">${S.resting ? '<span class="a">●</span> resting' : 'awake'}</span></div>
+    <div style="position:relative;display:grid;place-items:center;margin-top:5vh">
+      <svg viewBox="0 0 300 300" style="width:min(78vw,320px);max-width:100%">
+        <circle cx="${C}" cy="${C}" r="${R}" fill="none" stroke="rgba(240,233,223,.1)" stroke-width="5"/>${arc}
+        <circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="22" fill="rgba(222,180,118,.18)"/><circle cx="${sx.toFixed(1)}" cy="${sy.toFixed(1)}" r="9" fill="rgb(244,212,160)"/></svg>
+      <div style="position:absolute;text-align:center"><div class="clock" style="margin:0;font-size:68px">${shown}</div>
+        <p class="small" style="margin-top:4px">${S.resting ? `${Math.floor(left / 60)}h ${pad(left % 60)}m until ${S.wake}` : `rests at ${S.want}`}</p></div></div>
+    <div class="grow"></div>
+    <p class="label" style="position:relative">${S.resting ? 'resting till morning' : 'rest at bedtime'}</p>
+    <div style="position:relative;display:flex;flex-wrap:wrap;gap:8px;margin-top:10px">
+      ${apps.map(n => `<button class="opt" data-app="${n}" style="font-size:15px;padding:10px 16px;border-radius:999px;${S.resting ? 'color:var(--muted)' : ''}">${n}</button>`).join('')}</div>
+    <p class="small" style="position:relative;margin-top:14px">always open · phone, messages, maps, clock</p></div>`; },
+  shield: () => `<div class="screen" id="shieldbg"><div class="sky">${skyHTML(S.kept + 1, { emptyLast: true, top: 6, h: 24 })}</div><div class="grow"></div>
+    <div id="shieldtext"><p class="label">night ${S.kept + 1} · ${S.app || 'videos'}</p>
+    <h1 style="margin-top:12px">your phone is <span class="a">resting</span> until ${S.wake}.</h1>
+    <p class="small" style="margin-top:14px">tonight's star is waiting for you.</p></div><div class="grow"></div>
+    <div class="stack"><button class="btn" data-go="dark">back to sleep</button><button class="btn ghost" id="need">i need it (costs tonight's star)</button></div></div>`,
+  dark: () => `<div class="screen" style="background:#000;justify-content:center;align-items:center" data-go="phone"><p class="small" style="animation:fadeout 3s ease forwards">goodnight.</p>
+    <style>@keyframes fadeout{0%{opacity:0}30%{opacity:1}100%{opacity:0}}</style></div>`,
+  morning: () => S.broken
+    ? `<div class="screen morning"><div class="sky">${skyHTML(S.kept + 1, { emptyLast: true, top: 6, h: 24 })}</div><div class="grow"></div>
+      <p class="label">good morning</p><h1 style="margin-top:12px">tonight's a <span class="a">new</span> night.</h1>
+      <p class="small" style="margin-top:14px">your sky keeps every star you've earned.</p><div class="grow"></div>
+      <button class="btn" data-go="home" data-reset="1">see you at ${S.want}</button></div>`
+    : `<div class="screen morning"><div class="sky">${skyHTML(S.kept + 1, { amberLast: true, lightLast: true, top: 6, h: 24 })}</div><div class="grow"></div>
+      <p class="label">good morning · ${S.wake}</p><h1 style="margin-top:12px">you kept your <span class="a">night</span>.</h1>
+      <div class="card row" style="margin-top:26px"><div><div style="font-size:26px;letter-spacing:-.02em">7h 42m</div><p class="small">phone-free</p></div>
+      <div style="text-align:right"><div style="font-size:26px;letter-spacing:-.02em">${S.kept + 1}</div><p class="small">nights kept</p></div></div>
+      <div class="grow"></div><button class="btn" data-go="sky" data-keep="1">see your sky</button></div>`,
+  sky: () => `<div class="screen" style="touch-action:none"><canvas id="sky3d" style="position:absolute;inset:0;width:100%;height:100%"></canvas>
+    <div class="tip" id="skytip" hidden style="pointer-events:none"></div>
+    <div class="row" style="position:relative"><span class="label">your sky</span><span class="label" data-go="home" style="cursor:pointer">tonight →</span></div>
+    <h1 style="margin-top:14px;position:relative;pointer-events:none"><span class="a">${S.kept}</span> nights kept.</h1><p class="small" style="margin-top:8px;position:relative;pointer-events:none">drag to look around · tap a star</p></div>`,
+};
+function question(q, opts, key, next) {
+  return `<div class="screen"><div class="grow"></div><h1>${esc(q)}</h1><div class="opts" style="margin-top:30px">
+    ${opts.map(o => `<button class="opt${S[key] === o ? ' on' : ''}" data-set="${key}" data-val="${o}" data-next="${next}">${o}</button>`).join('')}</div><div class="grow" style="flex:.6"></div></div>`;
+}
+function toast(t) { const el = document.createElement('div'); el.className = 'toast'; el.textContent = t; view.firstElementChild.appendChild(el); setTimeout(() => el.remove(), 1800); }
+function go(name) { S.scene = name; view.innerHTML = scenes[name](); wire(); }
+function wire() {
+  view.querySelectorAll('[data-go]').forEach(el => el.addEventListener('click', e => {
+    if (el.dataset.rest) S.resting = true; if (el.dataset.keep) { S.kept += 1; S.resting = false; } if (el.dataset.reset) { S.broken = false; S.resting = false; }
+    e.stopPropagation(); go(el.dataset.go); }));
+  view.querySelectorAll('[data-set]').forEach(el => el.addEventListener('click', () => {
+    S[el.dataset.set] = el.dataset.val; el.parentElement.querySelectorAll('.opt').forEach(o => o.classList.toggle('on', o === el)); setTimeout(() => go(el.dataset.next), 380); }));
+  view.querySelectorAll('[data-app]').forEach(el => el.addEventListener('click', () => {
+    const n = el.dataset.app; if (S.resting) { S.app = n; return go('shield'); } toast(`${n} opens normally until ${S.want}`); }));
+  const bg = document.getElementById('shieldbg');
+  if (bg) bg.addEventListener('click', e => { if (e.target.closest('button')) return; const t = document.getElementById('shieldtext'); t.classList.remove('shake'); void t.offsetWidth; t.classList.add('shake'); });
+  const need = document.getElementById('need');
+  if (need) need.addEventListener('click', e => { e.stopPropagation();
+    const sh = document.createElement('div'); sh.className = 'sheet';
+    sh.innerHTML = `<h1 style="font-size:28px">unlock for 15 minutes?</h1><p class="small" style="margin:10px 0 22px">tonight's star stays dark. your sky keeps the rest.</p>
+      <div class="stack"><button class="btn" id="keepstar">keep my star</button><button class="btn ghost" id="unlock">unlock anyway</button></div>`;
+    view.firstElementChild.appendChild(sh);
+    sh.querySelector('#keepstar').onclick = ev => { ev.stopPropagation(); sh.remove(); };
+    sh.querySelector('#unlock').onclick = ev => { ev.stopPropagation(); S.broken = true; S.resting = false; go('phone'); toast('unlocked for 15 minutes'); }; });
+  const hold = document.getElementById('hold');
+  if (hold) commitHold(document.getElementById('cc'), hold, () => { const t = document.getElementById('ctext');
+    t.style.transition = 'opacity .4s'; t.style.opacity = 0;
+    setTimeout(() => { t.innerHTML = `<h1>see you at <span class="a">${S.want}</span>.</h1><p class="small" style="margin-top:14px">night 1 starts tonight.</p>`; t.style.opacity = 1; }, 420);
+    setTimeout(() => go('home'), 2400); });
+  const sk = document.getElementById('sky3d'); if (sk) sky3D(sk, S.kept, document.getElementById('skytip'));
+}
+function sky3D(cv, n, tipEl) {
+  const ctx = cv.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  let W = 0, H = 0; const size = () => { const r = cv.getBoundingClientRect(); W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+  size(); window.addEventListener('resize', size);
+  let s = 41; const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  const pt = () => { const u = rnd() * 2 - 1, a = rnd() * 6.283, q = Math.sqrt(1 - u * u); return [q * Math.cos(a), u * 0.8, q * Math.sin(a)]; };
+  const stars = Array.from({ length: n }, (_, i) => ({ p: pt(), r: i % 3 === 2 ? 3.6 : 2.4 + rnd() }));
+  const dust = Array.from({ length: 160 }, () => { const p = pt(); return { p: p.map(v => v * (1.6 + rnd() * .6)), r: .5 + rnd() * .8 }; });
+  let yaw = 0.6, pitch = -0.18, vy = 0.0012, vp = 0, drag = null, sel = -1;
+  const proj = ([x, y, z]) => { const cy = Math.cos(yaw), sy = Math.sin(yaw), cp = Math.cos(pitch), sp = Math.sin(pitch);
+    const x1 = x * cy + z * sy, z1 = -x * sy + z * cy, y1 = y * cp - z1 * sp, z2 = y * sp + z1 * cp;
+    const D = 2.8, k = D / (D - z2), R = Math.min(W, H) * 0.42; return [W / 2 + x1 * R * k, H * 0.55 + y1 * R * k, z2, k]; };
+  cv.addEventListener('pointerdown', e => { cv.setPointerCapture(e.pointerId); drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY }; vy = vp = 0; });
+  cv.addEventListener('pointermove', e => { if (!drag) return; const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+    yaw += dx * 0.006; pitch = Math.max(-1.2, Math.min(1.2, pitch + dy * 0.006)); vy = dx * 0.006; vp = dy * 0.006; drag.x = e.clientX; drag.y = e.clientY; });
+  cv.addEventListener('pointerup', e => { if (!drag) return; const moved = Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy); drag = null;
+    if (moved < 8) { const r = cv.getBoundingClientRect(), mx = e.clientX - r.left, my = e.clientY - r.top; let best = -1, bd = 34;
+      stars.forEach((st, i) => { const [px, py, z] = proj(st.p); const d = Math.hypot(px - mx, py - my); if (z > -0.2 && d < bd) { bd = d; best = i; } });
+      sel = best; tipEl.hidden = sel < 0; if (sel >= 0) tipEl.textContent = `${nightDate(sel, n)} · ${6 + (sel * 7 % 3)}h ${pad(10 + sel * 13 % 50)}m off your phone`; } });
+  const frame = () => {
+    if (!cv.isConnected) return;
+    if (!drag) { yaw += vy; pitch = Math.max(-1.2, Math.min(1.2, pitch + vp)); vy = vy * 0.95 + 0.0012 * 0.05; vp *= 0.92; }
+    ctx.clearRect(0, 0, W, H);
+    dust.forEach(d => { const [x, y, z, k] = proj(d.p); ctx.fillStyle = `rgba(240,233,223,${0.08 + 0.22 * (z + 2) / 4})`; ctx.beginPath(); ctx.arc(x, y, d.r * k, 0, 6.283); ctx.fill(); });
+    const P = stars.map(st => proj(st.p));
+    stars.map((st, i) => [P[i][2], i]).sort((a, b) => a[0] - b[0]).forEach(([, i]) => {
+      const [x, y, z, k] = P[i], st = stars[i], depth = (z + 1) / 2, hi = i === n - 1 || i === sel;
+      const a = 0.25 + 0.75 * depth, r = st.r * k * (hi ? 1.5 : 1);
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r * (hi ? 9 : 6));
+      g.addColorStop(0, `rgba(222,180,118,${(hi ? .5 : .22) * a})`); g.addColorStop(1, 'rgba(222,180,118,0)');
+      ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r * (hi ? 9 : 6), 0, 6.283); ctx.fill();
+      ctx.fillStyle = hi ? `rgba(244,212,160,${a})` : `rgba(240,233,223,${a})`; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.283); ctx.fill(); });
+    if (sel >= 0) { const [x, y, z] = P[sel]; tipEl.style.left = x + 'px'; tipEl.style.top = y + 'px'; tipEl.style.opacity = z > -0.3 ? 1 : 0; }
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+function commitHold(cv, target, onDone) {
+  const ctx = cv.getContext('2d'), dpr = Math.min(2, window.devicePixelRatio || 1);
+  let W = 0, H = 0; const size = () => { const r = cv.getBoundingClientRect(); W = r.width; H = r.height; cv.width = W * dpr; cv.height = H * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0); };
+  size(); window.addEventListener('resize', size);
+  let s = 5; const rnd = () => (s = (s * 9301 + 49297) % 233280) / 233280;
+  const stars = Array.from({ length: 16 }, () => ({ r0: 0.25 + rnd() * 0.75, a0: rnd() * 6.283, sz: 1.6 + rnd() * 1.8, tw: rnd() * 6 }));
+  let p = 0, holding = false, done = 0, last = performance.now();
+  const E = v => v < .5 ? 4 * v * v * v : 1 - Math.pow(-2 * v + 2, 3) / 2;
+  target.addEventListener('pointerdown', e => { e.preventDefault(); if (!done) holding = true; });
+  window.addEventListener('pointerup', () => holding = false); target.addEventListener('pointercancel', () => holding = false);
+  const frame = now => {
+    if (!cv.isConnected) return; const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!done) { p = holding ? Math.min(1, p + dt / 1.8) : Math.max(0, p - dt / 0.5); if (p >= 1) { done = now; try { navigator.vibrate?.(30); } catch (e) {} onDone(); } }
+    const cx = W / 2, cy = H * 0.7, R = Math.max(W, H) * 0.6, e = E(p), t = now / 1000;
+    ctx.clearRect(0, 0, W, H);
+    stars.forEach(st => { const r = st.r0 * R * (1 - e), a = st.a0 + e * 2.2, x = cx + Math.cos(a) * r, y = cy + Math.sin(a) * r * 0.9;
+      if (done && r < 1) return; const al = (0.45 + 0.35 * Math.sin(t * 1.3 + st.tw)) * (1 - e * 0.3);
+      ctx.fillStyle = `rgba(240,233,223,${al})`; ctx.beginPath(); ctx.arc(x, y, st.sz * (1 - e * 0.4), 0, 6.283); ctx.fill(); });
+    const RR = 46, a1 = -23.5 * Math.PI / 180, a2 = 294 * Math.PI / 180;
+    ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(240,233,223,.12)'; ctx.beginPath(); ctx.arc(cx, cy, RR, 0, 6.283); ctx.stroke();
+    if (p > 0) { ctx.strokeStyle = done ? 'rgb(240,233,223)' : 'rgb(244,212,160)'; ctx.beginPath(); ctx.arc(cx, cy, RR, a1, a1 + (a2 - a1) * e); ctx.stroke(); }
+    const k = done ? Math.min(1, (now - done) / 700) : 0, ke = E(k), la = -45 * Math.PI / 180;
+    const sx = cx + Math.cos(la) * 48 * ke, sy = cy + Math.sin(la) * 48 * ke, sr = (6 + 6 * e) * (1 - 0.15 * ke);
+    const bloom = done ? Math.sin(Math.min(1, (now - done) / 500) * Math.PI) : 0;
+    const g = ctx.createRadialGradient(sx, sy, 0, sx, sy, sr * (5 + 6 * bloom));
+    g.addColorStop(0, `rgba(222,180,118,${0.45 + 0.4 * bloom})`); g.addColorStop(1, 'rgba(222,180,118,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(sx, sy, sr * (5 + 6 * bloom), 0, 6.283); ctx.fill();
+    ctx.fillStyle = 'rgb(244,212,160)'; ctx.beginPath(); ctx.arc(sx, sy, sr, 0, 6.283); ctx.fill();
+    requestAnimationFrame(frame);
+  };
+  requestAnimationFrame(frame);
+}
+// hidden scene menu for filming: triple-tap the top-right corner
+const MENU = [['splash', 'onboarding'], ['q1', 'question: want to sleep'], ['q2', 'question: actually sleep'], ['mirror', 'mirror: hours lost'],
+  ['commit', 'hold to commit'], ['home', 'home: tonight'], ['phone', 'resting screen'], ['shield', 'locked app screen'], ['morning', 'morning: kept your night'],
+  ['morningbroken', 'morning: broke it'], ['sky', 'your sky']];
+function menu() {
+  const m = document.createElement('div'); m.className = 'menu';
+  m.innerHTML = `<div class="row"><p class="label">scenes</p><button class="btn ghost" data-close style="width:auto;padding:4px">close</button></div>
+    ${MENU.map(([k, l]) => `<button class="opt" data-k="${k}">${l}</button>`).join('')}
+    <div class="row" style="margin-top:8px"><span class="small">nights kept: <b id="kc" style="color:var(--fg)">${S.kept}</b></span>
+    <span><button class="opt" data-n="-1" style="padding:8px 16px">−</button> <button class="opt" data-n="1" style="padding:8px 16px">+</button></span></div>
+    <button class="btn ghost" data-close>close</button>`;
+  document.getElementById('app').appendChild(m);
+  m.querySelectorAll('[data-k]').forEach(b => b.onclick = () => { const k = b.dataset.k;
+    S.broken = k === 'morningbroken'; S.resting = ['phone', 'shield'].includes(k); m.remove(); go(k === 'morningbroken' ? 'morning' : k); });
+  m.querySelectorAll('[data-n]').forEach(b => b.onclick = () => { S.kept = Math.max(1, Math.min(60, S.kept + +b.dataset.n)); m.querySelector('#kc').textContent = S.kept; });
+  m.querySelectorAll('[data-close]').forEach(c => c.onclick = () => m.remove());
+}
+let taps = [];
+document.getElementById('hot').addEventListener('click', () => { const t = performance.now(); taps = taps.filter(x => t - x < 900).concat(t); if (taps.length >= 3) { taps = []; menu(); } });
+setInterval(() => { if (S.scene === 'phone') { const c = view.querySelector('.clock'); if (c && c.textContent !== '1:14') c.textContent = nowStr(); } }, 15000);
+go('splash');
+</script></body></html>
