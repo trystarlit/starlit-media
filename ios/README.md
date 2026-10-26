@@ -1,0 +1,16 @@
+# starlit iOS app (v0: onboarding + home)
+
+What's here: onboarding v2 (name, goals, mirror, how it works, wow sky, hold-to-commit, paywall mock), home screen with the sky and streak, orbit logo, haptics, dark theme.
+Not yet: the real bedtime lock (Screen Time / Family Controls) and real purchases — those need the paid Apple Developer account.
+
+## Run it in the iPhone simulator (on a Mac)
+1. Install **Xcode** from the Mac App Store (big download, ~1h).
+2. Xcode → File → New → Project → iOS → **App**. Product name `Starlit`, Interface **SwiftUI**, Language **Swift**. Save it anywhere.
+3. In the left sidebar, delete the two files Xcode made (`StarlitApp.swift`/`ContentView.swift`) → Move to Trash.
+4. Drag every `.swift` file from this `ios/Starlit/` folder into the sidebar's `Starlit` folder → check "Copy items if needed".
+5. Top bar: pick a simulator like **iPhone 16**, press **▶︎ Run** (Cmd+R).
+
+Tips
+- Haptics only work on a real iPhone, not the simulator.
+- On the home screen: triple-tap the sky to fake keeping a night; "reset onboarding (dev)" restarts the flow.
+- To run on your own iPhone: plug it in, pick it as the run target, Xcode → Settings → Accounts → add your Apple ID, then Signing & Capabilities → Team = your name. (Free accounts: the app expires after 7 days; just run it again.)
