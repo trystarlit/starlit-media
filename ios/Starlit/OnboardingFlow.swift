@@ -124,6 +124,9 @@ struct GoalsStep: View {
                     if store.goals.contains(g) { store.goals.remove(g) } else { store.goals.insert(g) }
                 }
             }
+            OptionCard(title: "all of the above", selected: store.goals.count == Goal.allCases.count) {
+                store.goals = store.goals.count == Goal.allCases.count ? [] : Set(Goal.allCases)
+            }
             Spacer()
             PrimaryButton(title: "continue", enabled: !store.goals.isEmpty, action: next)
         }
