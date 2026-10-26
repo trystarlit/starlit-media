@@ -16,6 +16,7 @@ final class UserStore: ObservableObject {
     @Published var keepsUp: Set<String> { didSet { d.set(Array(keepsUp), forKey: "keepsUp") } }
     @Published var nightsKept: Int { didSet { d.set(nightsKept, forKey: "nightsKept") } }
     @Published var streak: Int { didSet { d.set(streak, forKey: "streak") } }
+    @Published var bestStreak: Int { didSet { d.set(bestStreak, forKey: "bestStreak") } }
 
     init() {
         onboarded = d.bool(forKey: "onboarded")
@@ -28,6 +29,7 @@ final class UserStore: ObservableObject {
         keepsUp = Set(d.stringArray(forKey: "keepsUp") ?? [])
         nightsKept = d.integer(forKey: "nightsKept")
         streak = d.integer(forKey: "streak")
+        bestStreak = d.integer(forKey: "bestStreak")
     }
 
     /// The goal we personalize copy with (first one they picked, in display order).
@@ -40,8 +42,26 @@ final class UserStore: ObservableObject {
     var daysPerYear: Int { Int((hoursLost * 365 / 24).rounded()) }
 
     func reset() {
-        onboarded = false; name = ""; goals = []; mornings = ""; keepsUp = []; nightsKept = 0; streak = 0
+        onboarded = false; name = ""; goals = []; mornings = ""; keepsUp = []; nightsKept = 0; streak = 0; bestStreak = 0
     }
+
+    /// A night was kept: one more star, streak +1.
+    func keepNight() {
+        nightsKept += 1; streak += 1; bestStreak = max(bestStreak, streak)
+    }
+
+    /// Kept a night on this weekday? (0 = monday). `keptThrough` is the last kept weekday index.
+    func dayState(_ i: Int, today: Int, keptThrough: Int) -> DayState {
+        if i <= keptThrough && i > keptThrough - streak { return .kept }
+        if i < today { return .missed }
+        return i == today ? .today : .future
+    }
+
+    static var weekdayIndex: Int { (Calendar.current.component(.weekday, from: Date()) + 5) % 7 }   // monday = 0
+
+    static func ampm(_ minutes: Int) -> String { (((minutes % 1440) + 1440) % 1440) >= 720 ? "pm" : "am" }
+
+    var displayNameOrYou: String { displayName.isEmpty ? "you" : displayName }
 
     static func clock(_ minutes: Int) -> String {
         let m = ((minutes % 1440) + 1440) % 1440
@@ -50,6 +70,8 @@ final class UserStore: ObservableObject {
         return mm == 0 ? "\(h12):00" : String(format: "%d:%02d", h12, mm)
     }
 }
+
+enum DayState { case kept, missed, today, future }
 
 enum Goal: String, CaseIterable, Identifiable {
     case rested, scrolling, energy, focus, together

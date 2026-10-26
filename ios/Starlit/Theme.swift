@@ -4,6 +4,8 @@ import UIKit
 enum Theme {
     static let night = Color(red: 15/255, green: 13/255, blue: 11/255)      // #0F0D0B
     static let card = Color(red: 26/255, green: 23/255, blue: 20/255)       // #1A1714
+    static let card2 = Color(red: 38/255, green: 33/255, blue: 28/255)      // #26211C
+    static let selected = Color(red: 33/255, green: 28/255, blue: 22/255)   // #211C16
     static let line = Color(red: 240/255, green: 233/255, blue: 223/255).opacity(0.12)
     static let ivory = Color(red: 240/255, green: 233/255, blue: 223/255)   // #F0E9DF
     static let muted = Color(red: 155/255, green: 144/255, blue: 131/255)   // #9B9083
@@ -70,10 +72,12 @@ struct PrimaryButton: View {
     }
 }
 
-/// Rounded choice card used in onboarding questions.
+/// Rounded choice card used in onboarding questions. `tick` shows the round check on the right (multi-select).
 struct OptionCard: View {
     var title: String
     var selected: Bool
+    var tick: Bool = false
+    var trailing: String? = nil
     var action: () -> Void
 
     var body: some View {
@@ -81,22 +85,66 @@ struct OptionCard: View {
             Haptics.select()
             action()
         } label: {
-            Text(title)
-                .font(Theme.font(19))
-                .foregroundColor(selected ? Theme.amber : Theme.ivory)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, 20).padding(.vertical, 18)
-                .background(RoundedRectangle(cornerRadius: 20).fill(Theme.card))
-                .overlay(RoundedRectangle(cornerRadius: 20).stroke(selected ? Theme.amber : Theme.line, lineWidth: 1))
+            HStack {
+                Text(title).font(Theme.font(17))
+                Spacer(minLength: 8)
+                if let trailing { Text(trailing) }
+                if tick {
+                    ZStack {
+                        Circle().stroke(selected ? Theme.amber : Theme.line, lineWidth: 1.5)
+                        if selected { Circle().fill(Theme.amber); Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(Theme.night) }
+                    }
+                    .frame(width: 20, height: 20)
+                }
+            }
+            .foregroundColor(selected ? Theme.amber : Theme.ivory)
+            .padding(.horizontal, 18).padding(.vertical, 16)
+            .background(RoundedRectangle(cornerRadius: 18).fill(selected ? Theme.selected : Theme.card))
+            .overlay(RoundedRectangle(cornerRadius: 18).stroke(selected ? Theme.amber.opacity(0.7) : Theme.line, lineWidth: 1))
+            .animation(.easeOut(duration: 0.2), value: selected)
         }
         .buttonStyle(PressStyle())
     }
 }
 
+/// Card background used across the app.
+struct CardBG: ViewModifier {
+    var radius: CGFloat = 22
+    func body(content: Content) -> some View {
+        content
+            .background(RoundedRectangle(cornerRadius: radius).fill(Theme.card))
+            .overlay(RoundedRectangle(cornerRadius: radius).stroke(Theme.line, lineWidth: 1))
+    }
+}
+
+/// Screen-enter animation: fade + rise + un-blur, staggered by index.
+struct Rise: ViewModifier {
+    var delay: Double
+    @State private var on = false
+    func body(content: Content) -> some View {
+        content
+            .opacity(on ? 1 : 0)
+            .offset(y: on ? 0 : 14)
+            .blur(radius: on ? 0 : 6)
+            .onAppear { withAnimation(.spring(response: 0.6, dampingFraction: 0.9).delay(delay)) { on = true } }
+    }
+}
+
+extension View {
+    func card(_ radius: CGFloat = 22) -> some View { modifier(CardBG(radius: radius)) }
+    func rise(_ i: Int) -> some View { modifier(Rise(delay: Double(i) * 0.06)) }
+}
+
+struct Label12: View {   // small uppercase label
+    var text: String
+    init(_ t: String) { text = t }
+    var body: some View { Text(text.uppercased()).font(Theme.font(12)).tracking(1).foregroundColor(Theme.muted) }
+}
+
 struct PressStyle: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.easeOut(duration: 0.12), value: configuration.isPressed)
     }
 }

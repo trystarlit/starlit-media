@@ -20,7 +20,7 @@ struct RootView: View {
         ZStack {
             Theme.night.ignoresSafeArea()
             if store.onboarded {
-                HomeView()
+                MainView()
                     .transition(.opacity)
             } else {
                 OnboardingFlow()
