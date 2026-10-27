@@ -156,8 +156,8 @@ struct Label12: View {   // small lowercase label (brand: always lowercase)
 enum Links {
     /// Apple's standard EULA. Swap for your own terms page if you write one.
     static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
-    /// TODO: swap in the live waitlist site's address + /privacy/ once it's deployed (page source: site/deploy/privacy/).
-    static let privacy = URL(string: "https://example.com/starlit-privacy")!
+    /// Lives on the waitlist site (source: site/deploy/privacy/ in the starlit-context folder). Live once that folder is deployed.
+    static let privacy = URL(string: "https://trystarlit.netlify.app/privacy/")!
 }
 
 struct PressStyle: ButtonStyle {
