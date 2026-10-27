@@ -19,6 +19,8 @@ final class UserStore: ObservableObject {
     @Published var bestStreak: Int { didSet { d.set(bestStreak, forKey: "bestStreak") } }
 
     init() {
+        // a local copy: reading self.d here would use self before every stored property is set (compile error)
+        let d = UserDefaults.standard
         onboarded = d.bool(forKey: "onboarded")
         name = d.string(forKey: "name") ?? ""
         goals = Set((d.stringArray(forKey: "goals") ?? []).compactMap(Goal.init(rawValue:)))

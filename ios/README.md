@@ -12,7 +12,9 @@ Not yet: the real bedtime lock (Screen Time / Family Controls) and real purchase
 2. Xcode → File → New → Project → iOS → **App**. Product name `Starlit`, Interface **SwiftUI**, Language **Swift**. Save it anywhere.
 3. In the left sidebar, delete the two files Xcode made (`StarlitApp.swift`/`ContentView.swift`) → Move to Trash.
 4. Drag every `.swift` file from this `ios/Starlit/` folder into the sidebar's `Starlit` folder → check "Copy items if needed".
-5. Top bar: pick a simulator like **iPhone 16**, press **▶︎ Run** (Cmd+R).
+5. Click the blue **Starlit** project at the top of the sidebar → target **Starlit** → **General**: set Minimum Deployments to **iOS 17.0**. Then **Build Settings**, search "Swift Language Version" and set it to **Swift 5** (this code isn't written for Swift 6's strict concurrency checks yet).
+6. Fonts (optional, falls back to the system font without them): drag `Geist-Regular.ttf`, `Geist-Medium.ttf` and `Geist-SemiBold.ttf` from the brand pack into the sidebar ("Copy items if needed", target Starlit ticked). Then target → **Info** → add the key **Fonts provided by application** with those three file names.
+7. Top bar: pick a simulator like **iPhone 16**, press **▶︎ Run** (Cmd+R).
 
 Tips
 - Haptics only work on a real iPhone, not the simulator.

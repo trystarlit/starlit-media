@@ -12,16 +12,18 @@ enum Theme {
     static let amber = Color(red: 244/255, green: 212/255, blue: 160/255)   // #F4D4A0
     static let glow = Color(red: 222/255, green: 180/255, blue: 118/255)    // #DEB476
 
-    /// Brand font is Geist. Until the .ttf files are added to the project, fall back to the system font.
+    /// Brand font is Geist. Each face is used only if its .ttf is in the app (UIAppFonts in Info.plist);
+    /// a missing face (e.g. Geist-Light) falls back to Geist-Regular, then to the system font.
     static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
-        if UIFont(name: "Geist-Regular", size: size) != nil {
-            let name: String
-            switch weight {
-            case .medium, .semibold, .bold: name = "Geist-Medium"
-            case .light, .thin, .ultraLight: name = "Geist-Light"
-            default: name = "Geist-Regular"
-            }
-            return .custom(name, size: size)
+        let name: String
+        switch weight {
+        case .semibold, .bold, .heavy, .black: name = "Geist-SemiBold"
+        case .medium: name = "Geist-Medium"
+        case .light, .thin, .ultraLight: name = "Geist-Light"
+        default: name = "Geist-Regular"
+        }
+        for n in [name, "Geist-Regular"] where UIFont(name: n, size: size) != nil {
+            return .custom(n, size: size)
         }
         return .system(size: size, weight: weight)
     }

@@ -42,7 +42,7 @@ struct OnboardingFlow: View {
             .id(step)
 
             // progress bar + back (hidden on the full-bleed moments)
-            if ![.splash, .wow, .commit, .paywall].contains(step) {
+            if ![Step.splash, .wow, .commit, .paywall].contains(step) {
                 VStack {
                     HStack(spacing: 12) {
                         Button { back() } label: {
@@ -441,7 +441,7 @@ final class CommitModel {
             let al = (0.45 + 0.35 * sin(t * 1.3 + s.tw)) * (1 - e * 0.2)
             ctx.glowDot(CGPoint(x: cx + cos(a) * rr, y: cy + sin(a) * rr * 0.9), r: CGFloat(s.sz * (1 - e * 0.35)), color: Theme.ivory, alpha: al)
         }
-        let RR = 52.0, a1 = -23.5 * .pi / 180, a2 = 294 * .pi / 180
+        let RR = 52.0, a1 = -23.5 * Double.pi / 180, a2 = 294 * Double.pi / 180
         let k = doneAt.map { min(1, now.timeIntervalSince($0) / 0.9) } ?? 0, ke = ease(k)
         let center = CGPoint(x: cx, y: cy)
         var track = Path(); track.addArc(center: center, radius: RR, startAngle: .zero, endAngle: .radians(2 * .pi), clockwise: false)
