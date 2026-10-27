@@ -156,7 +156,7 @@ struct Label12: View {   // small lowercase label (brand: always lowercase)
 enum Links {
     /// Apple's standard EULA. Swap for your own terms page if you write one.
     static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
-    /// TODO before App Store submission: your own privacy policy page (e.g. on the waitlist site).
+    /// TODO: swap in the live waitlist site's address + /privacy/ once it's deployed (page source: site/deploy/privacy/).
     static let privacy = URL(string: "https://example.com/starlit-privacy")!
 }
 
