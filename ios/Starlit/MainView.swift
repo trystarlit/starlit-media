@@ -69,7 +69,7 @@ struct MainView: View {
                            show(.goodnight)
                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) { if moment == .goodnight { show(.resting) } }
                        },
-                       unlocked: { store.streak = 0; show(nil) })
+                       unlocked: { store.missNight(); show(nil) })
         case .goodnight:
             GoodnightView()
         case .morning:
@@ -128,7 +128,7 @@ struct TonightTab: View {
     var restNow: () -> Void
     @State private var sheet: SheetKind?
 
-    enum SheetKind: String, Identifiable { case bed, wake; var id: String { rawValue } }
+    enum SheetKind: String, Identifiable { case bed, wake, apps; var id: String { rawValue } }
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -137,8 +137,8 @@ struct TonightTab: View {
                 hero.rise(1)
                 HStack(spacing: 10) {
                     miniCard(top: "phone rests", value: "\(UserStore.clock(store.wantMinutes)) → \(UserStore.clock(store.wakeMinutes))", bottom: "tap to edit") { sheet = .bed }
-                    miniCard(top: "resting apps", value: "\(max(store.keepsUp.count, 1))",
-                             bottom: store.keepsUp.sorted().prefix(2).joined(separator: ", ")) { }
+                    miniCard(top: "resting apps", value: store.keepsUp.isEmpty ? "none" : "\(store.keepsUp.count)",
+                             bottom: store.keepsUp.isEmpty ? "tap to pick" : store.keepsUp.sorted().prefix(2).joined(separator: ", ")) { sheet = .apps }
                 }
                 .rise(2)
                 streakCard.rise(3)
@@ -150,6 +150,7 @@ struct TonightTab: View {
             switch k {
             case .bed: TimeSheet(title: "bedtime", values: .times(21 * 60, 25 * 60), value: $store.wantMinutes)
             case .wake: TimeSheet(title: "wake up", values: .times(5 * 60, 10 * 60), value: $store.wakeMinutes)
+            case .apps: AppsSheet().environmentObject(store)
             }
         }
     }
@@ -238,6 +239,7 @@ struct TonightTab: View {
 
 struct WeekDots: View {
     @EnvironmentObject var store: UserStore
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var pulse = false
     var body: some View {
         let today = UserStore.weekdayIndex
@@ -258,7 +260,10 @@ struct WeekDots: View {
                 .frame(maxWidth: .infinity)
             }
         }
-        .onAppear { withAnimation(.easeInOut(duration: 1.1).repeatForever()) { pulse = true } }
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.1).repeatForever()) { pulse = true }
+        }
     }
 }
 
@@ -310,7 +315,8 @@ struct YouTab: View {
                 HStack(spacing: 10) {
                     stat("\(store.nightsKept)", "nights kept")
                     stat("\(max(store.bestStreak, store.streak))", "best streak")
-                    stat("\(Int(Double(store.nightsKept) * store.hoursLost))h", "hours back")
+                    // estimate from their own onboarding answers, so it's labelled as one
+                    stat("~\(Int(Double(store.nightsKept) * store.hoursLost))h", "hours back, est.")
                 }
                 .rise(1)
                 Label12("your goals").padding(.top, 8)
@@ -319,9 +325,8 @@ struct YouTab: View {
                 VStack(spacing: 0) {
                     row("bedtime", "\(UserStore.clock(store.wantMinutes))\(UserStore.ampm(store.wantMinutes))") { sheet = .bed }
                     row("wake up", "\(UserStore.clock(store.wakeMinutes))\(UserStore.ampm(store.wakeMinutes))") { sheet = .wake }
-                    row("resting apps", "\(max(store.keepsUp.count, 1)) ›") { }
-                    row("bedtime countdown", "on") { }
-                    row("rest days left this week", "1", last: true) { }
+                    row("resting apps", "\(store.keepsUp.isEmpty ? "none" : "\(store.keepsUp.count)") ›") { sheet = .apps }
+                    row("rest days left this week", "\(store.restDaysLeft)", last: true)
                 }
                 .card()
                 Label12("preview screens").padding(.top, 8)
@@ -339,8 +344,10 @@ struct YouTab: View {
             switch k {
             case .bed: TimeSheet(title: "bedtime", values: .times(21 * 60, 25 * 60), value: $store.wantMinutes)
             case .wake: TimeSheet(title: "wake up", values: .times(5 * 60, 10 * 60), value: $store.wakeMinutes)
+            case .apps: AppsSheet().environmentObject(store)
             }
         }
+        .onAppear { store.refreshRestDays() }
     }
 
     private func stat(_ v: String, _ k: String) -> some View {
@@ -352,19 +359,51 @@ struct YouTab: View {
         .padding(14).card(20)
     }
 
-    private func row(_ title: String, _ value: String, last: Bool = false, tap: @escaping () -> Void) -> some View {
-        Button { Haptics.tap(); tap() } label: {
-            HStack {
-                Text(title).foregroundColor(Theme.ivory)
-                Spacer()
-                Text(value).foregroundColor(Theme.muted)
-            }
-            .font(Theme.font(16))
-            .padding(.horizontal, 18).padding(.vertical, 16)
-            .contentShape(Rectangle())
-            .overlay(alignment: .bottom) { if !last { Rectangle().fill(Theme.line).frame(height: 1) } }
+    /// A settings row. Without `tap` it's plain info, not a button.
+    @ViewBuilder private func row(_ title: String, _ value: String, last: Bool = false, tap: (() -> Void)? = nil) -> some View {
+        if let tap {
+            Button { Haptics.tap(); tap() } label: { rowLabel(title, value, last: last) }
+                .buttonStyle(.plain)
+        } else {
+            rowLabel(title, value, last: last)
         }
-        .buttonStyle(.plain)
+    }
+
+    private func rowLabel(_ title: String, _ value: String, last: Bool) -> some View {
+        HStack {
+            Text(title).foregroundColor(Theme.ivory)
+            Spacer()
+            Text(value).foregroundColor(Theme.muted)
+        }
+        .font(Theme.font(16))
+        .padding(.horizontal, 18).padding(.vertical, 16)
+        .contentShape(Rectangle())
+        .overlay(alignment: .bottom) { if !last { Rectangle().fill(Theme.line).frame(height: 1) } }
+    }
+}
+
+/// Pick which apps rest at bedtime (stand-in for Apple's FamilyActivityPicker).
+struct AppsSheet: View {
+    @EnvironmentObject var store: UserStore
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text("resting apps").font(Theme.font(24)).foregroundColor(Theme.ivory).padding(.top, 26)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+                ForEach(KeepsUpStep.apps, id: \.self) { a in
+                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true) {
+                        if store.keepsUp.contains(a) { store.keepsUp.remove(a) } else { store.keepsUp.insert(a) }
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+            PrimaryButton(title: "done") { Haptics.success(); dismiss() }
+        }
+        .padding(.horizontal, 26).padding(.bottom, 10)
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Color(red: 28/255, green: 25/255, blue: 21/255))
     }
 }
 

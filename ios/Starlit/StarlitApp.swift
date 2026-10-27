@@ -28,5 +28,6 @@ struct RootView: View {
             }
         }
         .animation(.easeInOut(duration: 0.5), value: store.onboarded)
+        .dynamicTypeSize(...DynamicTypeSize.xxxLarge)   // larger accessibility sizes would break the fixed-height cards
     }
 }

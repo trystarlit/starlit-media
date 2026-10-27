@@ -14,6 +14,7 @@ enum Theme {
 
     /// Brand font is Geist. Each face is used only if its .ttf is in the app (UIAppFonts in Info.plist);
     /// a missing face (e.g. Geist-Light) falls back to Geist-Regular, then to the system font.
+    /// Text follows Dynamic Type; display numbers (54pt+) stay fixed so big counters keep their layout.
     static func font(_ size: CGFloat, _ weight: Font.Weight = .regular) -> Font {
         let name: String
         switch weight {
@@ -22,10 +23,14 @@ enum Theme {
         case .light, .thin, .ultraLight: name = "Geist-Light"
         default: name = "Geist-Regular"
         }
+        let fixed = size >= 54
+        let (style, uiStyle): (Font.TextStyle, UIFont.TextStyle) =
+            size >= 28 ? (.largeTitle, .largeTitle) : size >= 20 ? (.title2, .title2) :
+            size >= 15 ? (.body, .body) : size >= 13 ? (.footnote, .footnote) : (.caption, .caption1)
         for n in [name, "Geist-Regular"] where UIFont(name: n, size: size) != nil {
-            return .custom(n, size: size)
+            return fixed ? .custom(n, fixedSize: size) : .custom(n, size: size, relativeTo: style)
         }
-        return .system(size: size, weight: weight)
+        return .system(size: fixed ? size : UIFontMetrics(forTextStyle: uiStyle).scaledValue(for: size), weight: weight)
     }
 }
 
@@ -74,12 +79,13 @@ struct PrimaryButton: View {
     }
 }
 
-/// Rounded choice card used in onboarding questions. `tick` shows the round check on the right (multi-select).
+/// Rounded choice card used in onboarding questions. `tick` shows the round check on the right (multi-select);
+/// `icon` is an SF Symbol shown on the right.
 struct OptionCard: View {
     var title: String
     var selected: Bool
     var tick: Bool = false
-    var trailing: String? = nil
+    var icon: String? = nil
     var action: () -> Void
 
     var body: some View {
@@ -90,7 +96,7 @@ struct OptionCard: View {
             HStack {
                 Text(title).font(Theme.font(17))
                 Spacer(minLength: 8)
-                if let trailing { Text(trailing) }
+                if let icon { Image(systemName: icon).font(.system(size: 17)) }
                 if tick {
                     ZStack {
                         Circle().stroke(selected ? Theme.amber : Theme.line, lineWidth: 1.5)
@@ -119,16 +125,19 @@ struct CardBG: ViewModifier {
     }
 }
 
-/// Screen-enter animation: fade + rise + un-blur, staggered by index.
+/// Screen-enter animation: fade + rise + un-blur, staggered by index. With Reduce Motion it's a plain quick fade.
 struct Rise: ViewModifier {
     var delay: Double
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var on = false
     func body(content: Content) -> some View {
         content
             .opacity(on ? 1 : 0)
-            .offset(y: on ? 0 : 14)
-            .blur(radius: on ? 0 : 6)
-            .onAppear { withAnimation(.spring(response: 0.6, dampingFraction: 0.9).delay(delay)) { on = true } }
+            .offset(y: on || reduceMotion ? 0 : 14)
+            .blur(radius: on || reduceMotion ? 0 : 6)
+            .onAppear {
+                withAnimation(reduceMotion ? .easeOut(duration: 0.2) : .spring(response: 0.6, dampingFraction: 0.9).delay(delay)) { on = true }
+            }
     }
 }
 
@@ -137,10 +146,18 @@ extension View {
     func rise(_ i: Int) -> some View { modifier(Rise(delay: Double(i) * 0.06)) }
 }
 
-struct Label12: View {   // small uppercase label
+struct Label12: View {   // small lowercase label (brand: always lowercase)
     var text: String
     init(_ t: String) { text = t }
-    var body: some View { Text(text.uppercased()).font(Theme.font(12)).tracking(1).foregroundColor(Theme.muted) }
+    var body: some View { Text(text.lowercased()).font(Theme.font(12)).tracking(0.3).foregroundColor(Theme.muted) }
+}
+
+/// Legal pages linked from the paywall (App Store requires both for subscriptions).
+enum Links {
+    /// Apple's standard EULA. Swap for your own terms page if you write one.
+    static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+    /// TODO before App Store submission: your own privacy policy page (e.g. on the waitlist site).
+    static let privacy = URL(string: "https://example.com/starlit-privacy")!
 }
 
 struct PressStyle: ButtonStyle {

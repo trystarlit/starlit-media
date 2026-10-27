@@ -33,6 +33,7 @@ struct TwinkleSky: View {
     private let stars: [SkyStar]
     private let dust: [SkyStar]
     var amberLast: Bool
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     init(stars n: Int, seed: UInt64, dust d: Int = 70, height: Double = 0.62, amberLast: Bool = false) {
         var r = Seeded(seed)
@@ -53,7 +54,7 @@ struct TwinkleSky: View {
     }
 
     var body: some View {
-        TimelineView(.animation) { tl in
+        TimelineView(.animation(minimumInterval: nil, paused: reduceMotion)) { tl in   // Reduce Motion: still sky, no twinkle
             Canvas { ctx, size in
                 let t = tl.date.timeIntervalSinceReferenceDate
                 let W = Double(size.width), H = Double(size.height)
@@ -82,6 +83,7 @@ struct TwinkleSky: View {
 final class SkyCamera {
     static let pitch0 = -0.15, auto = 0.0012
     var yaw = 0.6, pitch = SkyCamera.pitch0, vy = SkyCamera.auto
+    var spin = SkyCamera.auto        // 0 with Reduce Motion: the sky only moves when you drag it
     var dragging = false
     var released = Date.distantPast
     var lastTick: Date?
@@ -95,7 +97,7 @@ final class SkyCamera {
         yaw += vy * k
         vy *= pow(0.94, k)
         let idle = now.timeIntervalSince(released)
-        if idle > 2 { vy += (SkyCamera.auto - vy) * min(1, (idle - 2) / 1.5) * min(1, 0.06 * k) }
+        if idle > 2 { vy += (spin - vy) * min(1, (idle - 2) / 1.5) * min(1, 0.06 * k) }
         pitch += (SkyCamera.pitch0 - pitch) * min(1, 0.08 * k)
     }
 
@@ -121,6 +123,7 @@ struct Sky3DView: View {
     var nights: Int
     var newStar: Bool = false
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var cam = SkyCamera()
     @State private var sel: Int?
     @State private var start: CGPoint?
@@ -161,6 +164,7 @@ struct Sky3DView: View {
             )
         }
         .onAppear {
+            if reduceMotion { cam.spin = 0; cam.vy = 0 }
             guard newStar, nights > 0 else { return }
             let p = stars[nights - 1].p
             cam.yaw = atan2(-p.x, p.z); cam.vy = 0                      // face tonight's star
@@ -184,7 +188,8 @@ struct Sky3DView: View {
     private func tip(for i: Int) -> String {
         let d = Calendar.current.date(byAdding: .day, value: -(nights - 1 - i), to: Date()) ?? Date()
         let f = DateFormatter(); f.dateFormat = "MMM d"
-        return "\(f.string(from: d).lowercased()) · \(6 + (i * 7 % 3))h \(String(format: "%02d", 10 + i * 13 % 50))m phone-free"
+        // date + night number only; per-night phone-free time comes later from real Screen Time data
+        return "\(f.string(from: d).lowercased()) · night \(i + 1)"
     }
 
     private func draw(_ ctx: GraphicsContext, _ size: CGSize, _ now: Date) {

@@ -17,6 +17,9 @@ final class UserStore: ObservableObject {
     @Published var nightsKept: Int { didSet { d.set(nightsKept, forKey: "nightsKept") } }
     @Published var streak: Int { didSet { d.set(streak, forKey: "streak") } }
     @Published var bestStreak: Int { didSet { d.set(bestStreak, forKey: "bestStreak") } }
+    /// One rest day a week: a missed night spends it instead of breaking the streak.
+    @Published var restDaysLeft: Int { didSet { d.set(restDaysLeft, forKey: "restDaysLeft") } }
+    @Published var restWeek: Int { didSet { d.set(restWeek, forKey: "restWeek") } }
 
     init() {
         // a local copy: reading self.d here would use self before every stored property is set (compile error)
@@ -32,6 +35,29 @@ final class UserStore: ObservableObject {
         nightsKept = d.integer(forKey: "nightsKept")
         streak = d.integer(forKey: "streak")
         bestStreak = d.integer(forKey: "bestStreak")
+        restDaysLeft = d.object(forKey: "restDaysLeft") as? Int ?? 1
+        restWeek = d.integer(forKey: "restWeek")
+        refreshRestDays()
+    }
+
+    static var currentWeek: Int {
+        let c = Calendar.current.dateComponents([.yearForWeekOfYear, .weekOfYear], from: Date())
+        return (c.yearForWeekOfYear ?? 0) * 100 + (c.weekOfYear ?? 0)
+    }
+
+    /// New week, new rest day.
+    func refreshRestDays() {
+        let w = UserStore.currentWeek
+        if restWeek != w { restWeek = w; restDaysLeft = 1 }
+    }
+
+    /// A resting app was unlocked: tonight's star stays dark. The week's rest day covers the streak;
+    /// without one the streak starts over. Returns true if the rest day was used.
+    @discardableResult func missNight() -> Bool {
+        refreshRestDays()
+        if restDaysLeft > 0 { restDaysLeft -= 1; return true }
+        streak = 0
+        return false
     }
 
     /// The goal we personalize copy with (first one they picked, in display order).
@@ -44,7 +70,7 @@ final class UserStore: ObservableObject {
     var daysPerYear: Int { Int((hoursLost * 365 / 24).rounded()) }
 
     func reset() {
-        onboarded = false; name = ""; goals = []; mornings = ""; keepsUp = []; nightsKept = 0; streak = 0; bestStreak = 0
+        onboarded = false; name = ""; goals = []; mornings = ""; keepsUp = []; nightsKept = 0; streak = 0; bestStreak = 0; restDaysLeft = 1
     }
 
     /// A night was kept: one more star, streak +1.

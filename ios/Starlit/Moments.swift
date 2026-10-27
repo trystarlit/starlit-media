@@ -30,9 +30,9 @@ struct RestingView: View {
     private func content(now: Int, progress p: Double, left: Int) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
-                (Text("NIGHT ") + Text("\(store.nightsKept + 1)").foregroundColor(Theme.amber)).font(Theme.font(12)).tracking(1).foregroundColor(Theme.muted)
+                (Text("night ") + Text("\(store.nightsKept + 1)").foregroundColor(Theme.amber)).font(Theme.font(12)).tracking(0.3).foregroundColor(Theme.muted)
                 Spacer()
-                (Text("● ").foregroundColor(Theme.amber) + Text("RESTING")).font(Theme.font(12)).tracking(1).foregroundColor(Theme.muted)
+                (Text("● ").foregroundColor(Theme.amber) + Text("resting")).font(Theme.font(12)).tracking(0.3).foregroundColor(Theme.muted)
             }
             ZStack {
                 Circle().stroke(Theme.ivory.opacity(0.1), lineWidth: 5)
@@ -81,8 +81,8 @@ struct ShieldView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Spacer()
-            (Text("NIGHT ") + Text("\(store.nightsKept + 1)").foregroundColor(Theme.amber) + Text(" · \(app.uppercased())"))
-                .font(Theme.font(12)).tracking(1).foregroundColor(Theme.muted)
+            (Text("night ") + Text("\(store.nightsKept + 1)").foregroundColor(Theme.amber) + Text(" · \(app)"))
+                .font(Theme.font(12)).tracking(0.3).foregroundColor(Theme.muted)
             Headline("your phone is ", amber: "resting", " until \(UserStore.clock(store.wakeMinutes)).", size: 36)
             Text("tonight's star is waiting for you, \(store.displayNameOrYou).").font(Theme.font(15)).foregroundColor(Theme.muted)
             Spacer()
@@ -96,10 +96,14 @@ struct ShieldView: View {
         .background(TwinkleSky(stars: store.nightsKept, seed: 31, dust: 70, height: 0.3).background(Theme.night).ignoresSafeArea())
         .contentShape(Rectangle())
         .onTapGesture { Haptics.warning(); withAnimation(.linear(duration: 0.45)) { shake += 1 } }
+        .onAppear { store.refreshRestDays() }
         .sheet(isPresented: $asking) {
             VStack(alignment: .leading, spacing: 12) {
                 Text("unlock for 15 minutes?").font(Theme.font(24)).foregroundColor(Theme.ivory).padding(.top, 26)
-                Text("tonight's star stays dark. your sky keeps the rest.").font(Theme.font(15)).foregroundColor(Theme.muted)
+                Text(store.restDaysLeft > 0
+                     ? "tonight's star stays dark. your rest day covers your streak."
+                     : "tonight's star stays dark, and your streak starts over. your sky keeps the rest.")
+                    .font(Theme.font(15)).foregroundColor(Theme.muted)
                 Spacer()
                 PrimaryButton(title: "keep my star") { asking = false; Haptics.success() }
                 Button("unlock anyway") { asking = false; unlocked() }
@@ -142,7 +146,8 @@ struct MorningView: View {
             Label12("good morning · \(UserStore.clock(store.wakeMinutes))").rise(0)
             Headline("you kept your ", amber: "night", ", \(store.displayNameOrYou).", size: 36).rise(1)
             HStack(spacing: 10) {
-                stat("7h 42m", "phone-free")
+                // the scheduled window, not measured screen time. swap in real Screen Time data once Family Controls lands
+                stat(restWindow, "rest window")
                 stat("\(store.nightsKept + 1)", "nights kept")
             }
             .padding(.top, 8).rise(2)
@@ -158,6 +163,11 @@ struct MorningView: View {
             }
             .ignoresSafeArea()
         )
+    }
+
+    private var restWindow: String {
+        let len = ((store.wakeMinutes - store.wantMinutes % 1440) + 1440) % 1440
+        return "\(len / 60)h \(String(format: "%02d", len % 60))m"
     }
 
     private func stat(_ v: String, _ k: String) -> some View {
@@ -176,6 +186,7 @@ struct StreakView: View {
     @EnvironmentObject var store: UserStore
     var justKept: Bool
     var close: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = 0
     @State private var popNewest = false
     @State private var floatUp = false
@@ -214,7 +225,7 @@ struct StreakView: View {
         )
         .onAppear {
             shown = justKept ? max(0, store.streak - 1) : store.streak
-            withAnimation(.easeInOut(duration: 4).repeatForever()) { floatUp = true }
+            if !reduceMotion { withAnimation(.easeInOut(duration: 4).repeatForever()) { floatUp = true } }
             guard justKept else { return }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.9) {
                 Haptics.success()
@@ -289,8 +300,9 @@ struct Embers: View {
         var r = Seeded(9)
         return (0..<26).map { _ -> (x: Double, ph: Double, sp: Double, sz: Double) in ((r.next() - 0.5) * 170, r.next(), 0.25 + r.next() * 0.35, 1 + r.next() * 2.4) }
     }()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     var body: some View {
-        TimelineView(.animation) { tl in
+        TimelineView(.animation(minimumInterval: nil, paused: reduceMotion)) { tl in
             Canvas { ctx, size in
                 let t = tl.date.timeIntervalSinceReferenceDate
                 let cx = Double(size.width) / 2, cy = Double(size.height) * 0.33

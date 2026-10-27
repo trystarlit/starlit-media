@@ -27,6 +27,7 @@ struct OnboardingFlow: View {
                 case .mirror: MirrorStep(next: go(.mornings))
                 case .mornings: SingleChoiceStep(title: ("how do your ", "mornings", " feel right now?"),
                                                  options: ["wrecked", "tired", "okay", "great"],
+                                                 icons: ["battery.0percent", "battery.25percent", "battery.75percent", "battery.100percent"],
                                                  value: $store.mornings, next: go(.keepsUp))
                 case .keepsUp: KeepsUpStep(next: go(.how))
                 case .how: HowItWorksStep(next: go(.wow))
@@ -164,6 +165,7 @@ struct TimeStep: View {
 struct SingleChoiceStep: View {
     var title: (String, String, String)
     var options: [String]
+    var icons: [String] = []   // SF Symbols, one per option
     @Binding var value: String
     var next: () -> Void
     var body: some View {
@@ -171,7 +173,7 @@ struct SingleChoiceStep: View {
             Spacer()
             Headline(title.0, amber: title.1, title.2, size: 34).padding(.bottom, 16).rise(0)
             ForEach(Array(options.enumerated()), id: \.element) { i, o in
-                OptionCard(title: o, selected: value == o, trailing: ["😵", "🥱", "🙂", "☀️"][i % 4]) {
+                OptionCard(title: o, selected: value == o, icon: icons.indices.contains(i) ? icons[i] : nil) {
                     value = o
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.38) { next() }
                 }
@@ -210,14 +212,14 @@ struct KeepsUpStep: View {
     @EnvironmentObject var store: UserStore
     var next: () -> Void
     // Stand-in list. On a real phone this becomes Apple's FamilyActivityPicker once Family Controls is approved.
-    let apps = ["tiktok", "instagram", "youtube", "snapchat", "texting", "games", "netflix", "x"]
+    static let apps = ["tiktok", "instagram", "youtube", "snapchat", "texting", "games", "netflix", "x"]
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Spacer().frame(height: 50)
             Headline("what ", amber: "keeps", " you up?")
             Text("we'll rest these at bedtime").font(Theme.font(15)).foregroundColor(Theme.muted).padding(.bottom, 8)
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                ForEach(apps, id: \.self) { a in
+                ForEach(Self.apps, id: \.self) { a in
                     OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true) {
                         if store.keepsUp.contains(a) { store.keepsUp.remove(a) } else { store.keepsUp.insert(a) }
                     }
@@ -276,6 +278,7 @@ struct HowItWorksStep: View {
 struct WowStep: View {
     @EnvironmentObject var store: UserStore
     var next: () -> Void
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var litAt: Date?
     @State private var pulse = false
 
@@ -328,7 +331,10 @@ struct WowStep: View {
                 .animation(.easeOut(duration: 0.6).delay(0.5), value: litAt)
         }
         .background(TwinkleSky(stars: 0, seed: 12, dust: 120).padding(-40).ignoresSafeArea())
-        .onAppear { withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: false)) { pulse = true } }
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 2.2).repeatForever(autoreverses: false)) { pulse = true }
+        }
     }
 }
 
@@ -481,8 +487,15 @@ struct PaywallStep: View {
             }
             .font(Theme.font(12)).foregroundColor(Theme.muted).padding(.horizontal, 4)
             PrimaryButton(title: annual ? "start my 7 free nights" : "continue", action: finish)
-            Text("cancel anytime · no charge today (purchases not wired up yet)")
+            Text(annual ? "7 days free, then $39.99/year. cancel anytime." : "$7.99/month. cancel anytime.")
                 .font(Theme.font(12)).foregroundColor(Theme.muted).frame(maxWidth: .infinity)
+            HStack(spacing: 18) {
+                // TODO with RevenueCat: Purchases.shared.restorePurchases, then finish() if a subscription is active
+                Button("restore") { Haptics.tap() }
+                Link("terms", destination: Links.terms)
+                Link("privacy", destination: Links.privacy)
+            }
+            .font(Theme.font(12)).foregroundColor(Theme.muted).frame(maxWidth: .infinity)
         }
     }
 
