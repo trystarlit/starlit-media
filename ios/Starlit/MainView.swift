@@ -22,6 +22,11 @@ struct MainView: View {
     @State private var tab: AppTab = .tonight
     @State private var moment: Moment?
     @State private var litPending = false
+    @State private var welcome = false
+    @State private var welcomeStart = 0
+    @State private var stop: TourStop?
+    @State private var allSet = false
+    @State private var stopRects: [TourStop: CGRect] = [:]
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -31,29 +36,90 @@ struct MainView: View {
                 case .tonight:
                     TonightTab(openSky: { switchTo(.sky) },
                                openStreak: { show(.streak(justKept: false)) },
-                               restNow: { show(.resting) })
+                               restNow: { show(.resting) },
+                               focus: stop,
+                               report: { stopRects[$0] = $1 })
                 case .sky:
                     SkyTab(newStar: litPending) {
                         litPending = false
                         show(.streak(justKept: true))
                     }
                 case .you:
-                    YouTab(preview: { show($0) })
+                    YouTab(preview: { show($0) }, report: { stopRects[.you] = $0 })
                 }
             }
             .id(tab)
             .transition(.opacity)
 
             GlassTabBar(tab: $tab)
+                .allowsHitTesting(stop == nil)
 
             if let m = moment {
                 momentView(m)
+                    .allowsHitTesting(stop == nil)
                     .transition(.opacity.combined(with: .scale(scale: 1.02)))
                     .zIndex(10)
+            }
+
+            if let stop {
+                Spotlight(stop: stop, rect: stop.spotlit ? stopRects[stop] : nil,
+                          advance: { goTo(stop.next) }, skip: endTour)
+                    .id(stop)
+                    .transition(.opacity)
+                    .zIndex(20)
+            }
+
+            if allSet {
+                AllSetView(done: endTour)
+                    .transition(.opacity)
+                    .zIndex(25)
+            }
+
+            if welcome {
+                WelcomeTour(start: welcomeStart) {
+                    tab = .tonight
+                    welcome = false
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { goTo(.skyCard) }
+                }
+                .transition(.opacity)
+                .zIndex(30)
             }
         }
         .animation(.easeOut(duration: 0.3), value: tab)
         .animation(.easeOut(duration: 0.4), value: moment)
+        .animation(.easeOut(duration: 0.35), value: stop)
+        .animation(.easeInOut(duration: 0.5), value: allSet)
+        .animation(.easeInOut(duration: 0.5), value: welcome)
+        .onAppear {
+            #if DEBUG
+            // Launch with `-tourShot setup1` / `stop3` / `allset` to open the tour on that screen (for screenshots).
+            if let shot = UserDefaults.standard.string(forKey: "tourShot") {
+                if shot.hasPrefix("setup") { welcomeStart = Int(shot.dropFirst(5)) ?? 0; welcome = true }
+                else if shot.hasPrefix("stop"), let i = Int(shot.dropFirst(4)) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { goTo(TourStop.allCases[i]) }
+                }
+                else if shot == "allset" { allSet = true }
+                return
+            }
+            #endif
+            if !store.touredApp { welcome = true }
+        }
+        .onChange(of: store.touredApp) { _, toured in
+            if !toured && store.onboarded { moment = nil; welcome = true }
+        }
+    }
+
+    /// Moves the tour to `s` (its tab and screen); nil means the walkthrough is over.
+    private func goTo(_ s: TourStop?) {
+        guard let s else { stop = nil; moment = nil; allSet = true; return }
+        tab = s.tab
+        moment = s.moment
+        stop = s
+    }
+
+    private func endTour() {
+        stop = nil; allSet = false; moment = nil; tab = .tonight
+        store.touredApp = true
     }
 
     private func switchTo(_ t: AppTab) { Haptics.tap(); tab = t }
@@ -62,7 +128,8 @@ struct MainView: View {
     @ViewBuilder private func momentView(_ m: Moment) -> some View {
         switch m {
         case .resting:
-            RestingView(openApp: { show(.shield($0)) }, close: { show(nil) })
+            RestingView(previewNow: stop == .resting ? (store.wantMinutes + 75) % 1440 : nil,
+                        openApp: { show(.shield($0)) }, close: { show(nil) })
         case .shield(let app):
             ShieldView(app: app,
                        backToSleep: {
@@ -126,25 +193,40 @@ struct TonightTab: View {
     var openSky: () -> Void
     var openStreak: () -> Void
     var restNow: () -> Void
+    var focus: TourStop? = nil
+    var report: (TourStop, CGRect) -> Void = { _, _ in }
     @State private var sheet: SheetKind?
 
     enum SheetKind: String, Identifiable { case bed, wake, apps; var id: String { rawValue } }
 
     var body: some View {
+        ScrollViewReader { proxy in
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 14) {
                 header.rise(0)
                 hero.rise(1)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report(.skyCard, $0) }
+                    .id(TourStop.skyCard)
                 HStack(spacing: 10) {
                     miniCard(top: "phone rests", value: "\(UserStore.clock(store.wantMinutes)) → \(UserStore.clock(store.wakeMinutes))", bottom: "tap to edit") { sheet = .bed }
                     miniCard(top: "resting apps", value: store.keepsUp.isEmpty ? "none" : "\(store.keepsUp.count)",
                              bottom: store.keepsUp.isEmpty ? "tap to pick" : store.keepsUp.sorted().prefix(2).joined(separator: ", ")) { sheet = .apps }
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report(.appsCard, $0) }
+                    .id(TourStop.appsCard)
                 }
                 .rise(2)
                 streakCard.rise(3)
                 PrimaryButton(title: "rest now", action: restNow).rise(4)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report(.restNow, $0) }
+                    .id(TourStop.restNow)
             }
             .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 110)
+        }
+        .scrollDisabled(focus != nil)
+        .onChange(of: focus) { _, f in
+            guard let f else { return }
+            withAnimation(.easeOut(duration: 0.35)) { proxy.scrollTo(f, anchor: .center) }
+        }
         }
         .sheet(item: $sheet) { k in
             switch k {
@@ -298,6 +380,7 @@ struct SkyTab: View {
 struct YouTab: View {
     @EnvironmentObject var store: UserStore
     var preview: (Moment) -> Void
+    var report: (CGRect) -> Void = { _ in }
     @State private var sheet: TonightTab.SheetKind?
 
     var body: some View {
@@ -329,11 +412,13 @@ struct YouTab: View {
                     row("rest days left this week", "\(store.restDaysLeft)", last: true)
                 }
                 .card()
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
                 Label12("preview screens").padding(.top, 8)
                 VStack(spacing: 0) {
                     row("streak screen", "›") { preview(.streak(justKept: false)) }
                     row("locked app screen", "›") { preview(.shield(store.keepsUp.sorted().first ?? "tiktok")) }
                     row("morning: kept your night", "›") { preview(.morning) }
+                    row("app tour", "›") { store.touredApp = false }
                     row("restart onboarding", "↺", last: true) { store.reset() }
                 }
                 .card()

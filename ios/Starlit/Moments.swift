@@ -10,13 +10,15 @@ private func restingApps(_ store: UserStore) -> [String] {
 /// "rest now": clock ring with a star travelling round it, and the apps that are resting.
 struct RestingView: View {
     @EnvironmentObject var store: UserStore
+    /// Minutes after midnight to show instead of the real time (the app tour shows a sample night).
+    var previewNow: Int? = nil
     var openApp: (String) -> Void
     var close: () -> Void
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 30)) { tl in
             let c = Calendar.current.dateComponents([.hour, .minute], from: tl.date)
-            let now = (c.hour ?? 0) * 60 + (c.minute ?? 0)
+            let now = previewNow ?? (c.hour ?? 0) * 60 + (c.minute ?? 0)
             let bed = store.wantMinutes % 1440
             let len = max(60, ((store.wakeMinutes - bed) + 1440) % 1440)
             let elapsed = (now - bed + 1440) % 1440

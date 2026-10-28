@@ -20,6 +20,8 @@ final class UserStore: ObservableObject {
     /// One rest day a week: a missed night spends it instead of breaking the streak.
     @Published var restDaysLeft: Int { didSet { d.set(restDaysLeft, forKey: "restDaysLeft") } }
     @Published var restWeek: Int { didSet { d.set(restWeek, forKey: "restWeek") } }
+    /// Saw the welcome tour that runs after the first purchase.
+    @Published var touredApp: Bool { didSet { d.set(touredApp, forKey: "touredApp") } }
 
     init() {
         // a local copy: reading self.d here would use self before every stored property is set (compile error)
@@ -37,6 +39,7 @@ final class UserStore: ObservableObject {
         bestStreak = d.integer(forKey: "bestStreak")
         restDaysLeft = d.object(forKey: "restDaysLeft") as? Int ?? 1
         restWeek = d.integer(forKey: "restWeek")
+        touredApp = d.bool(forKey: "touredApp")
         refreshRestDays()
     }
 
@@ -70,7 +73,7 @@ final class UserStore: ObservableObject {
     var daysPerYear: Int { Int((hoursLost * 365 / 24).rounded()) }
 
     func reset() {
-        onboarded = false; name = ""; goals = []; mornings = ""; keepsUp = []; nightsKept = 0; streak = 0; bestStreak = 0; restDaysLeft = 1
+        onboarded = false; name = ""; goals = []; mornings = ""; keepsUp = []; nightsKept = 0; streak = 0; bestStreak = 0; restDaysLeft = 1; touredApp = false
     }
 
     /// A night was kept: one more star, streak +1.
