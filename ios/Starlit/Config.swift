@@ -6,8 +6,6 @@ enum Config {
     /// RevenueCat → Project settings → API keys. Right now this is the Test Store key (test_…): fake purchases, no App Store.
     /// Swap in the iOS "Public app-specific API key" (appl_…) before an App Store build.
     static let revenueCatKey = "test_YplEMSVWzQrBcQHFipisEjibNsw"
-    /// The RevenueCat entitlement that unlocks starlit.
-    static let entitlement = "pro"
 
     /// Supabase → Project Settings → API: Project URL (https://xxxx.supabase.co).
     static let supabaseURL = "https://qkpirwxhbnrkbynofinh.supabase.co"

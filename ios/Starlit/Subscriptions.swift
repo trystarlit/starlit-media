@@ -5,7 +5,7 @@ import RevenueCat
 /// Without a RevenueCat key it stays off and every purchase "succeeds", so the app can still be tested end to end.
 @MainActor
 final class Subscriptions: ObservableObject {
-    /// True once the user has the `pro` entitlement (or RevenueCat isn't set up yet).
+    /// True once the user has any active entitlement (or RevenueCat isn't set up yet).
     @Published private(set) var isActive = !Config.hasRevenueCat
     /// False until the first customer-info check comes back, so we don't flash the paywall on launch.
     @Published private(set) var checked = !Config.hasRevenueCat
@@ -42,7 +42,8 @@ final class Subscriptions: ObservableObject {
         let result = try await Purchases.shared.purchase(package: package)
         if result.userCancelled { return false }
         apply(result.customerInfo)
-        return isActive
+        guard isActive else { throw SubscriptionError.noAccess }
+        return true
     }
 
     func restore() async throws -> Bool {
@@ -56,12 +57,18 @@ final class Subscriptions: ObservableObject {
     func skipForTesting() { isActive = true }
     #endif
 
+    // starlit has one tier, so any active entitlement unlocks it (RevenueCat's is "starlit unlimited").
     private func apply(_ info: CustomerInfo) {
-        isActive = info.entitlements[Config.entitlement]?.isActive == true
+        isActive = !info.entitlements.active.isEmpty
     }
 }
 
 enum SubscriptionError: LocalizedError {
-    case notLoaded
-    var errorDescription: String? { "couldn't reach the app store. check your connection and try again." }
+    case notLoaded, noAccess
+    var errorDescription: String? {
+        switch self {
+        case .notLoaded: "couldn't reach the app store. check your connection and try again."
+        case .noAccess: "your purchase went through but didn't unlock starlit. tap restore to try again."
+        }
+    }
 }
