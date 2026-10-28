@@ -24,6 +24,9 @@ struct MainView: View {
     @State private var litPending = false
     @State private var welcome = false
     @State private var welcomeStart = 0
+    #if DEBUG
+    private static var shotUsed = false   // the screenshot switch applies to the first screen of a launch only
+    #endif
     @State private var stop: TourStop?
     @State private var allSet = false
     @State private var stopRects: [TourStop: CGRect] = [:]
@@ -93,7 +96,8 @@ struct MainView: View {
         .onAppear {
             #if DEBUG
             // Launch with `-tourShot setup1` / `stop3` / `allset` to open the tour on that screen (for screenshots).
-            if let shot = UserDefaults.standard.string(forKey: "tourShot") {
+            if !Self.shotUsed, let shot = UserDefaults.standard.string(forKey: "tourShot") {
+                Self.shotUsed = true
                 if shot.hasPrefix("setup") { welcomeStart = Int(shot.dropFirst(5)) ?? 0; welcome = true }
                 else if shot.hasPrefix("stop"), let i = Int(shot.dropFirst(4)) {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { goTo(TourStop.allCases[i]) }
