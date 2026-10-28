@@ -264,7 +264,7 @@ struct TonightTab: View {
                 RoundedRectangle(cornerRadius: 30)
                     .fill(RadialGradient(colors: [Color(red: 42/255, green: 34/255, blue: 25/255), Color(red: 21/255, green: 18/255, blue: 15/255)],
                                          center: UnitPoint(x: 0.5, y: 1.2), startRadius: 0, endRadius: 420))
-                TwinkleSky(stars: store.nightsKept + 1, seed: 41, dust: 80, height: 0.5)
+                TwinkleSky(stars: store.nightsKept, seed: 41, dust: 80, height: 0.5)
                 TimelineView(.periodic(from: .now, by: 30)) { ctx in
                     let m = minutesUntilBed(ctx.date)
                     VStack(alignment: .leading, spacing: 2) {
@@ -282,6 +282,14 @@ struct TonightTab: View {
                 Text("your sky ›").font(Theme.font(12)).foregroundColor(Theme.muted)
                     .padding(.horizontal, 10).padding(.vertical, 5)
                     .background(Capsule().fill(.ultraThinMaterial)).padding(16)
+            }
+            .overlay {
+                VStack(spacing: 10) {
+                    PendingStar(size: 52)
+                    Text("tonight's star").font(Theme.font(12)).tracking(0.3).foregroundColor(Theme.muted)
+                }
+                .offset(x: 62, y: -42)
+                .allowsHitTesting(false)
             }
         }
         .buttonStyle(PressStyle())
@@ -320,6 +328,29 @@ struct TonightTab: View {
             .padding(.horizontal, 14).padding(.vertical, 16).card()
         }
         .buttonStyle(PressStyle())
+    }
+}
+
+/// Tonight's star before it's earned: a dashed amber ring around a dim, breathing core.
+struct PendingStar: View {
+    var size: CGFloat = 34
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var breathe = false
+    var body: some View {
+        ZStack {
+            Circle().fill(RadialGradient(colors: [Theme.amber.opacity(0.22), .clear], center: .center, startRadius: 0, endRadius: size / 2))
+                .frame(width: size, height: size).scaleEffect(breathe ? 1.2 : 0.9)
+            Circle().strokeBorder(Theme.amber.opacity(0.6), style: StrokeStyle(lineWidth: 1.2, dash: [2.5, 3.5]))
+                .frame(width: size * 0.62, height: size * 0.62)
+            Circle().fill(Theme.amber).frame(width: size * 0.13, height: size * 0.13)
+                .shadow(color: Theme.glow.opacity(0.8), radius: breathe ? size * 0.18 : size * 0.08)
+                .opacity(breathe ? 0.95 : 0.55)
+        }
+        .frame(width: size, height: size)
+        .onAppear {
+            guard !reduceMotion else { breathe = true; return }
+            withAnimation(.easeInOut(duration: 2.2).repeatForever()) { breathe = true }
+        }
     }
 }
 
