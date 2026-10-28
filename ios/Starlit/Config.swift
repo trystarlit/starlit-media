@@ -9,9 +9,9 @@ enum Config {
     static let entitlement = "pro"
 
     /// Supabase → Project Settings → API: Project URL (https://xxxx.supabase.co).
-    static let supabaseURL = ""
-    /// Supabase → Project Settings → API: the anon public key.
-    static let supabaseAnonKey = ""
+    static let supabaseURL = "https://qkpirwxhbnrkbynofinh.supabase.co"
+    /// Supabase → Project Settings → API Keys: the publishable key (sb_publishable_…), or the legacy anon key.
+    static let supabaseAnonKey = "sb_publishable_F3TcFAf85TCMCm90Og-AeQ_lguwG4n6"
 
     static var hasRevenueCat: Bool { !revenueCatKey.isEmpty }
     static var hasSupabase: Bool { !supabaseURL.isEmpty && !supabaseAnonKey.isEmpty }

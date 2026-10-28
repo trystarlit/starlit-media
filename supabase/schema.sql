@@ -22,8 +22,11 @@ create table if not exists public.profiles (
 alter table public.profiles enable row level security;
 
 -- each user can only see and change their own row
+drop policy if exists "own profile: read" on public.profiles;
 create policy "own profile: read" on public.profiles for select using (auth.uid() = id);
+drop policy if exists "own profile: insert" on public.profiles;
 create policy "own profile: insert" on public.profiles for insert with check (auth.uid() = id);
+drop policy if exists "own profile: update" on public.profiles;
 create policy "own profile: update" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
 
 create or replace function public.touch_updated_at() returns trigger language plpgsql as $$
