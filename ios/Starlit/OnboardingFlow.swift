@@ -464,11 +464,14 @@ final class CommitModel {
     }
 }
 
-/// Placeholder paywall. Real purchases (RevenueCat/Superwall) come once the paid developer account is set up.
+/// Paywall. Purchases go through RevenueCat (Subscriptions); without a RevenueCat key the buttons just continue.
 struct PaywallStep: View {
     @EnvironmentObject var store: UserStore
+    @EnvironmentObject var subscriptions: Subscriptions
     var finish: () -> Void
     @State private var annual = true
+    @State private var busy = false
+    @State private var error: String?
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             OrbitLogo(size: 56).frame(maxWidth: .infinity).padding(.top, 6).rise(0)
@@ -486,16 +489,39 @@ struct PaywallStep: View {
                 Text("today: full access"); Spacer(); Text("day 5: reminder"); Spacer(); Text("day 7: trial ends")
             }
             .font(Theme.font(12)).foregroundColor(Theme.muted).padding(.horizontal, 4)
-            PrimaryButton(title: annual ? "start my 7 free nights" : "continue", action: finish)
+            PrimaryButton(title: busy ? "one sec…" : annual ? "start my 7 free nights" : "continue", enabled: !busy) {
+                run { try await subscriptions.purchase(annual: annual) }
+            }
             Text(annual ? "7 days free, then $39.99/year. cancel anytime." : "$7.99/month. cancel anytime.")
                 .font(Theme.font(12)).foregroundColor(Theme.muted).frame(maxWidth: .infinity)
             HStack(spacing: 18) {
-                // TODO with RevenueCat: Purchases.shared.restorePurchases, then finish() if a subscription is active
-                Button("restore") { Haptics.tap() }
+                Button("restore") {
+                    Haptics.tap()
+                    run(nothingFound: "no subscription found on this apple id.") { try await subscriptions.restore() }
+                }
+                .disabled(busy)
                 Link("terms", destination: Links.terms)
                 Link("privacy", destination: Links.privacy)
             }
             .font(Theme.font(12)).foregroundColor(Theme.muted).frame(maxWidth: .infinity)
+        }
+        .alert("hmm", isPresented: Binding(get: { error != nil }, set: { if !$0 { error = nil } })) {
+            Button("ok", role: .cancel) {}
+        } message: {
+            Text(error ?? "")
+        }
+    }
+
+    /// Runs a purchase/restore; finishes onboarding when it unlocks, shows an alert when it fails.
+    private func run(nothingFound: String? = nil, _ action: @escaping () async throws -> Bool) {
+        busy = true
+        Task {
+            defer { busy = false }
+            do {
+                if try await action() { finish() } else if let nothingFound { error = nothingFound }
+            } catch {
+                self.error = error.localizedDescription
+            }
         }
     }
 
