@@ -51,6 +51,11 @@ final class Subscriptions: ObservableObject {
         return isActive
     }
 
+    #if DEBUG
+    /// Debug builds only: get past the paywall until the next launch, so a half-set-up RevenueCat project can't lock us out.
+    func skipForTesting() { isActive = true }
+    #endif
+
     private func apply(_ info: CustomerInfo) {
         isActive = info.entitlements[Config.entitlement]?.isActive == true
     }

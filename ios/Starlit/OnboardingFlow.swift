@@ -502,6 +502,9 @@ struct PaywallStep: View {
                 .disabled(busy)
                 Link("terms", destination: Links.terms)
                 Link("privacy", destination: Links.privacy)
+                #if DEBUG
+                Button("skip (debug)") { subscriptions.skipForTesting(); finish() }
+                #endif
             }
             .font(Theme.font(12)).foregroundColor(Theme.muted).frame(maxWidth: .infinity)
         }
