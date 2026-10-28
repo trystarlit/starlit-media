@@ -90,7 +90,8 @@ struct ShieldView: View {
             Spacer()
             PrimaryButton(title: "back to sleep", action: backToSleep)
             Button { Haptics.warning(); asking = true } label: {
-                Text("i need it (costs tonight's star)").font(Theme.font(15)).foregroundColor(Theme.muted).frame(maxWidth: .infinity).padding(10)
+                Text(store.restDaysLeft > 0 ? "i need it tonight" : "i need it (costs tonight's star)")
+                    .font(Theme.font(15)).foregroundColor(Theme.muted).frame(maxWidth: .infinity).padding(10)
             }
         }
         .modifier(Shake(amount: CGFloat(shake)))
@@ -100,20 +101,43 @@ struct ShieldView: View {
         .onTapGesture { Haptics.warning(); withAnimation(.linear(duration: 0.45)) { shake += 1 } }
         .onAppear { store.refreshRestDays() }
         .sheet(isPresented: $asking) {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("unlock for 15 minutes?").font(Theme.font(24)).foregroundColor(Theme.ivory).padding(.top, 26)
-                Text(store.restDaysLeft > 0
-                     ? "tonight's star stays dark. your rest day covers your streak."
-                     : "tonight's star stays dark, and your streak starts over. your sky keeps the rest.")
-                    .font(Theme.font(15)).foregroundColor(Theme.muted)
-                Spacer()
-                PrimaryButton(title: "keep my star") { asking = false; Haptics.success() }
-                Button("unlock anyway") { asking = false; unlocked() }
-                    .font(Theme.font(15)).foregroundColor(Theme.muted).frame(maxWidth: .infinity).padding(10)
+            Group {
+                if store.restDaysLeft > 0 { useRestNight } else { unlockAnyway }
             }
             .padding(.horizontal, 26)
-            .presentationDetents([.height(300)])
+            .presentationDetents([.height(330)])
             .presentationBackground(Color(red: 28/255, green: 25/255, blue: 21/255))
+        }
+    }
+
+    /// With a rest night saved: spend it and the streak stays safe.
+    private var useRestNight: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(spacing: 10) {
+                RestNightsSaved()
+                Text("\(store.restDaysLeft) of \(UserStore.maxRestDays) saved").font(Theme.font(13)).foregroundColor(Theme.muted)
+            }
+            .padding(.top, 28)
+            Text("use a rest night?").font(Theme.font(24)).foregroundColor(Theme.ivory)
+            Text("your apps open for tonight and your streak stays safe. tonight's star stays dark.")
+                .font(Theme.font(15)).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true)
+            Spacer()
+            PrimaryButton(title: "use a rest night") { asking = false; Haptics.success(); unlocked() }
+            Button("back to sleep") { asking = false; backToSleep() }
+                .font(Theme.font(15)).foregroundColor(Theme.muted).frame(maxWidth: .infinity).padding(10)
+        }
+    }
+
+    /// No rest nights left: unlocking breaks the streak.
+    private var unlockAnyway: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text("no rest nights left").font(Theme.font(24)).foregroundColor(Theme.ivory).padding(.top, 28)
+            Text("tonight's star stays dark, and your streak starts over. your sky keeps the rest. you get a new rest night monday.")
+                .font(Theme.font(15)).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true)
+            Spacer()
+            PrimaryButton(title: "keep my star") { asking = false; Haptics.success() }
+            Button("unlock anyway") { asking = false; unlocked() }
+                .font(Theme.font(15)).foregroundColor(Theme.muted).frame(maxWidth: .infinity).padding(10)
         }
     }
 }
@@ -187,6 +211,8 @@ struct MorningView: View {
 struct StreakView: View {
     @EnvironmentObject var store: UserStore
     var justKept: Bool
+    /// Where the week card is on screen (the app tour spotlights it).
+    var report: (CGRect) -> Void = { _ in }
     var close: () -> Void
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown = 0
@@ -212,8 +238,10 @@ struct StreakView: View {
                 .shadow(color: Theme.glow.opacity(0.45), radius: 30)
                 .contentTransition(.numericText(value: Double(shown)))
                 .padding(.top, 10)
-            Text("nights in a row").font(Theme.font(26)).tracking(-0.8).foregroundColor(Theme.ivory)
-            weekCard.padding(.top, 26)
+            Text(shown == 1 ? "night in a row" : "nights in a row").font(Theme.font(26)).tracking(-0.8).foregroundColor(Theme.ivory)
+            weekCard
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
+                .padding(.top, 26)
             Spacer()
             PrimaryButton(title: "keep it going", action: close)
         }
@@ -248,6 +276,15 @@ struct StreakView: View {
                     dayCell(i, today: today, thru: thru, monday: monday)
                 }
             }
+            HStack(spacing: 10) {
+                RestNightsSaved()
+                Text(store.restDaysLeft == 0 ? "no rest nights saved · you get one every monday"
+                     : "\(store.restDaysLeft) rest \(store.restDaysLeft == 1 ? "night" : "nights") saved · each covers a night out")
+                    .font(Theme.font(13)).foregroundColor(Theme.muted)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 6)
             Rectangle().fill(Theme.line).frame(height: 1)
             Text((justKept ? "night \(store.nightsKept) is in your sky, \(store.displayNameOrYou). " : "you're glowing, \(store.displayNameOrYou). ")
                  + "\(left) more \(left == 1 ? "night" : "nights") and your sky unlocks a new color ✦")
@@ -260,9 +297,11 @@ struct StreakView: View {
 
     @ViewBuilder private func dayCell(_ i: Int, today: Int, thru: Int, monday: Date) -> some View {
         let st = store.dayState(i, today: today, keptThrough: thru)
-        let kept = st == .kept
-        let runL = kept && store.dayState(i - 1, today: today, keptThrough: thru) != .kept
-        let runR = kept && store.dayState(i + 1, today: today, keptThrough: thru) != .kept
+        // a rested night keeps the streak band unbroken
+        let inRun: (DayState) -> Bool = { $0 == .kept || $0 == .rested }
+        let kept = inRun(st)
+        let runL = kept && !inRun(store.dayState(i - 1, today: today, keptThrough: thru))
+        let runR = kept && !inRun(store.dayState(i + 1, today: today, keptThrough: thru))
         let newest = justKept && i == thru
         let date = Calendar.current.component(.day, from: Calendar.current.date(byAdding: .day, value: i, to: monday) ?? monday)
         VStack(spacing: 10) {
@@ -280,6 +319,8 @@ struct StreakView: View {
                             .frame(width: 30, height: 30).background(Circle().fill(Theme.amber))
                             .shadow(color: Theme.glow.opacity(0.6), radius: 7)
                             .scaleEffect(popNewest ? 1 : 0.01)
+                    } else if st == .rested {
+                        RestDayIcon()
                     } else if kept {
                         Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold)).foregroundColor(Theme.amber)
                     } else if st == .missed {
@@ -297,6 +338,34 @@ struct StreakView: View {
 }
 
 /// Amber sparks drifting up behind the streak logo.
+/// A night a rest night covered: a moon in a soft ivory disc.
+struct RestDayIcon: View {
+    var size: CGFloat = 30
+    var body: some View {
+        Image(systemName: "moon.fill")
+            .font(.system(size: size * 0.42, weight: .semibold))
+            .foregroundColor(Theme.night)
+            .frame(width: size, height: size)
+            .background(Circle().fill(Theme.ivory))
+            .shadow(color: Theme.ivory.opacity(0.35), radius: 6)
+    }
+}
+
+/// Saved rest nights as moon slots: lit for each one saved, outlined for empty ones.
+struct RestNightsSaved: View {
+    @EnvironmentObject var store: UserStore
+    var body: some View {
+        HStack(spacing: 5) {
+            ForEach(0..<UserStore.maxRestDays, id: \.self) { i in
+                Image(systemName: i < store.restDaysLeft ? "moon.fill" : "moon")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(i < store.restDaysLeft ? Theme.ivory : Theme.muted.opacity(0.5))
+                    .shadow(color: i < store.restDaysLeft ? Theme.ivory.opacity(0.4) : .clear, radius: 4)
+            }
+        }
+    }
+}
+
 struct Embers: View {
     private let parts: [(x: Double, ph: Double, sp: Double, sz: Double)] = {
         var r = Seeded(9)

@@ -106,7 +106,7 @@ private struct TourAppsStep: View {
             // TODO: swap for Apple's FamilyActivityPicker once the Screen Time lock is built.
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 ForEach(KeepsUpStep.apps, id: \.self) { a in
-                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true) {
+                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true, leading: KeepsUpStep.icon(a)) {
                         if store.keepsUp.contains(a) { store.keepsUp.remove(a) } else { store.keepsUp.insert(a) }
                     }
                 }
@@ -120,7 +120,7 @@ private struct TourAppsStep: View {
 
 /// The walkthrough after setup. Tonight stops spotlight one card; the rest caption a whole screen.
 enum TourStop: CaseIterable {
-    case skyCard, appsCard, restNow, sky, resting, streak, you
+    case skyCard, appsCard, restNow, sky, resting, streak, restNights, you
 
     var tab: AppTab {
         switch self {
@@ -133,12 +133,12 @@ enum TourStop: CaseIterable {
     var moment: Moment? {
         switch self {
         case .resting: return .resting
-        case .streak: return .streak(justKept: false)
+        case .streak, .restNights: return .streak(justKept: false)
         default: return nil
         }
     }
 
-    var spotlit: Bool { [.skyCard, .appsCard, .restNow, .you].contains(self) }
+    var spotlit: Bool { [.skyCard, .appsCard, .restNow, .restNights, .you].contains(self) }
 
     var title: String {
         switch self {
@@ -148,6 +148,7 @@ enum TourStop: CaseIterable {
         case .sky: return "your sky"
         case .resting: return "at bedtime"
         case .streak: return "your streak"
+        case .restNights: return "rest nights"
         case .you: return "you"
         }
     }
@@ -159,7 +160,8 @@ enum TourStop: CaseIterable {
         case .restNow: return "heading to bed early? this rests your apps right away."
         case .sky: return "every night you keep lights a star. drag to look around, tap a star to see its night."
         case .resting: return "this is your phone at bedtime. open a resting app and it costs tonight's star."
-        case .streak: return "nights kept in a row. miss one and your weekly rest day saves it."
+        case .streak: return "nights kept in a row. every one lights a star in your sky."
+        case .restNights: return "night out? use a rest night and your streak stays safe. you get one every week and can save up to 3."
         case .you: return "your bedtime, wake up and resting apps. change them anytime."
         }
     }

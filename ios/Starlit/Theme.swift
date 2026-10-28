@@ -86,6 +86,8 @@ struct OptionCard: View {
     var selected: Bool
     var tick: Bool = false
     var icon: String? = nil
+    /// SF Symbol shown before the title.
+    var leading: String? = nil
     var action: () -> Void
 
     var body: some View {
@@ -93,11 +95,14 @@ struct OptionCard: View {
             Haptics.select()
             action()
         } label: {
-            HStack {
-                Text(title).font(Theme.font(17))
+            HStack(spacing: 8) {
+                if let leading {
+                    Image(systemName: leading).font(.system(size: 14, weight: .medium)).frame(width: 18)
+                }
+                Text(title).font(Theme.font(17)).lineLimit(1).minimumScaleFactor(0.8)
                 Spacer(minLength: 8)
                 if let icon { Image(systemName: icon).font(.system(size: 17)) }
-                if tick {
+                if tick && leading == nil {   // with an icon there's no room; the amber border shows selection
                     ZStack {
                         Circle().stroke(selected ? Theme.amber : Theme.line, lineWidth: 1.5)
                         if selected { Circle().fill(Theme.amber); Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(Theme.night) }

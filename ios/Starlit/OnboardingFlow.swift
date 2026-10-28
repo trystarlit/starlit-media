@@ -213,6 +213,20 @@ struct KeepsUpStep: View {
     var next: () -> Void
     // Stand-in list. On a real phone this becomes Apple's FamilyActivityPicker once Family Controls is approved.
     static let apps = ["tiktok", "instagram", "youtube", "snapchat", "texting", "games", "netflix", "x"]
+    /// Stand-in symbols; Apple's picker shows the real app icons.
+    static func icon(_ app: String) -> String {
+        switch app {
+        case "tiktok": return "music.note"
+        case "instagram": return "camera"
+        case "youtube": return "play.rectangle.fill"
+        case "snapchat": return "bubble.left.and.text.bubble.right"
+        case "texting": return "message.fill"
+        case "games": return "gamecontroller.fill"
+        case "netflix": return "tv.fill"
+        case "x": return "xmark"
+        default: return "app"
+        }
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Spacer().frame(height: 50)
@@ -220,7 +234,7 @@ struct KeepsUpStep: View {
             Text("we'll rest these at bedtime").font(Theme.font(15)).foregroundColor(Theme.muted).padding(.bottom, 8)
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 ForEach(Self.apps, id: \.self) { a in
-                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true) {
+                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true, leading: KeepsUpStep.icon(a)) {
                         if store.keepsUp.contains(a) { store.keepsUp.remove(a) } else { store.keepsUp.insert(a) }
                     }
                 }

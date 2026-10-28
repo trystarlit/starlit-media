@@ -17,9 +17,12 @@ final class UserStore: ObservableObject {
     @Published var nightsKept: Int { didSet { d.set(nightsKept, forKey: "nightsKept") } }
     @Published var streak: Int { didSet { d.set(streak, forKey: "streak") } }
     @Published var bestStreak: Int { didSet { d.set(bestStreak, forKey: "bestStreak") } }
-    /// One rest day a week: a missed night spends it instead of breaking the streak.
+    /// Rest days saved up: one more each week, up to `maxRestDays`. A missed night spends one instead of breaking the streak.
     @Published var restDaysLeft: Int { didSet { d.set(restDaysLeft, forKey: "restDaysLeft") } }
     @Published var restWeek: Int { didSet { d.set(restWeek, forKey: "restWeek") } }
+    /// Weekdays (0 = monday) whose nights a rest day covered this week.
+    @Published var restedDays: Set<Int> { didSet { d.set(Array(restedDays), forKey: "restedDays") } }
+    static let maxRestDays = 3
     /// Saw the welcome tour that runs after the first purchase.
     @Published var touredApp: Bool { didSet { d.set(touredApp, forKey: "touredApp") } }
 
@@ -39,6 +42,7 @@ final class UserStore: ObservableObject {
         bestStreak = d.integer(forKey: "bestStreak")
         restDaysLeft = d.object(forKey: "restDaysLeft") as? Int ?? 1
         restWeek = d.integer(forKey: "restWeek")
+        restedDays = Set(d.array(forKey: "restedDays") as? [Int] ?? [])
         touredApp = d.bool(forKey: "touredApp")
         refreshRestDays()
     }
@@ -48,17 +52,26 @@ final class UserStore: ObservableObject {
         return (c.yearForWeekOfYear ?? 0) * 100 + (c.weekOfYear ?? 0)
     }
 
-    /// New week, new rest day.
+    /// New week: one more rest day (they stack up to the max).
     func refreshRestDays() {
         let w = UserStore.currentWeek
-        if restWeek != w { restWeek = w; restDaysLeft = 1 }
+        guard restWeek != w else { return }
+        if restWeek != 0 { restDaysLeft = min(UserStore.maxRestDays, restDaysLeft + 1) }
+        restWeek = w
+        restedDays = []
     }
 
     /// A resting app was unlocked: tonight's star stays dark. The week's rest day covers the streak;
     /// without one the streak starts over. Returns true if the rest day was used.
     @discardableResult func missNight() -> Bool {
         refreshRestDays()
-        if restDaysLeft > 0 { restDaysLeft -= 1; return true }
+        if restDaysLeft > 0 {
+            // after midnight it's still last night's rest
+            let afterMidnight = Calendar.current.component(.hour, from: Date()) < 12
+            restDaysLeft -= 1
+            restedDays.insert((UserStore.weekdayIndex + (afterMidnight ? 6 : 0)) % 7)
+            return true
+        }
         streak = 0
         return false
     }
@@ -73,7 +86,7 @@ final class UserStore: ObservableObject {
     var daysPerYear: Int { Int((hoursLost * 365 / 24).rounded()) }
 
     func reset() {
-        onboarded = false; name = ""; goals = []; mornings = ""; keepsUp = []; nightsKept = 0; streak = 0; bestStreak = 0; restDaysLeft = 1; touredApp = false
+        onboarded = false; name = ""; goals = []; mornings = ""; keepsUp = []; nightsKept = 0; streak = 0; bestStreak = 0; restDaysLeft = 1; restedDays = []; touredApp = false
     }
 
     /// A night was kept: one more star, streak +1.
@@ -82,8 +95,17 @@ final class UserStore: ObservableObject {
     }
 
     /// Kept a night on this weekday? (0 = monday). `keptThrough` is the last kept weekday index.
+    /// The streak counts back from `keptThrough`; a rested night sits inside it without counting.
     func dayState(_ i: Int, today: Int, keptThrough: Int) -> DayState {
-        if i <= keptThrough && i > keptThrough - streak { return .kept }
+        if restedDays.contains(i) && i <= today { return .rested }
+        var left = streak, d = keptThrough
+        while left > 0 && d >= 0 && d >= i {
+            if !restedDays.contains(d) {
+                if d == i { return .kept }
+                left -= 1
+            }
+            d -= 1
+        }
         if i < today { return .missed }
         return i == today ? .today : .future
     }
@@ -102,7 +124,7 @@ final class UserStore: ObservableObject {
     }
 }
 
-enum DayState { case kept, missed, today, future }
+enum DayState { case kept, rested, missed, today, future }
 
 enum Goal: String, CaseIterable, Identifiable {
     case rested, scrolling, energy, focus, together

@@ -103,6 +103,7 @@ struct MainView: View {
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { goTo(TourStop.allCases[i]) }
                 }
                 else if shot == "allset" { allSet = true }
+                else if shot == "streak" { moment = .streak(justKept: false) }
                 return
             }
             #endif
@@ -151,7 +152,7 @@ struct MainView: View {
                 show(nil)
             }
         case .streak(let justKept):
-            StreakView(justKept: justKept) { show(nil) }
+            StreakView(justKept: justKept, report: { stopRects[.restNights] = $0 }) { show(nil) }
         }
     }
 }
@@ -319,7 +320,7 @@ struct TonightTab: View {
             VStack(spacing: 12) {
                 HStack(alignment: .firstTextBaseline) {
                     Text("\(store.streak)").font(Theme.font(22)).foregroundColor(Theme.amber)
-                    Text("nights in a row").font(Theme.font(15)).foregroundColor(Theme.muted)
+                    Text(store.streak == 1 ? "night in a row" : "nights in a row").font(Theme.font(15)).foregroundColor(Theme.muted)
                     Spacer()
                     Text("best \(max(store.bestStreak, store.streak)) ›").font(Theme.font(15)).foregroundColor(Theme.muted)
                 }
@@ -367,6 +368,7 @@ struct WeekDots: View {
                     ZStack {
                         switch st {
                         case .kept: Circle().fill(Theme.ivory).shadow(color: Theme.glow.opacity(0.35), radius: 5)
+                        case .rested: RestDayIcon(size: 22)
                         case .today: Circle().strokeBorder(Theme.amber, style: StrokeStyle(lineWidth: 1.5, dash: [3, 3])).scaleEffect(pulse ? 1.1 : 1)
                         default: Circle().strokeBorder(Theme.line, lineWidth: 1.5)
                         }
@@ -444,7 +446,7 @@ struct YouTab: View {
                     row("bedtime", "\(UserStore.clock(store.wantMinutes))\(UserStore.ampm(store.wantMinutes))") { sheet = .bed }
                     row("wake up", "\(UserStore.clock(store.wakeMinutes))\(UserStore.ampm(store.wakeMinutes))") { sheet = .wake }
                     row("resting apps", "\(store.keepsUp.isEmpty ? "none" : "\(store.keepsUp.count)") ›") { sheet = .apps }
-                    row("rest days left this week", "\(store.restDaysLeft)", last: true)
+                    row("rest days saved", "\(store.restDaysLeft) of \(UserStore.maxRestDays)", last: true)
                 }
                 .card()
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
@@ -512,7 +514,7 @@ struct AppsSheet: View {
             Text("resting apps").font(Theme.font(24)).foregroundColor(Theme.ivory).padding(.top, 26)
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 ForEach(KeepsUpStep.apps, id: \.self) { a in
-                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true) {
+                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true, leading: KeepsUpStep.icon(a)) {
                         if store.keepsUp.contains(a) { store.keepsUp.remove(a) } else { store.keepsUp.insert(a) }
                     }
                 }

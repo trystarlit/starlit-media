@@ -102,10 +102,10 @@ final class SkyCamera {
     }
 
     func drag(dx: CGFloat, dy: CGFloat) {
-        yaw += Double(dx) * 0.006
-        vy = Double(dx) * 0.006
+        yaw += Double(dx) * 0.0035
+        vy = Double(dx) * 0.0035
         let off = pitch - SkyCamera.pitch0
-        pitch += Double(dy) * 0.0025 * max(0.1, 1 - abs(off) / 0.45)
+        pitch += Double(dy) * 0.0015 * max(0.1, 1 - abs(off) / 0.45)
     }
 
     /// Returns screen point, depth (-1 back ... 1 front), perspective scale.
