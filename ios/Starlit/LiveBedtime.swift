@@ -4,11 +4,17 @@ import Foundation
 /// Starts the bedtime Live Activity when the app is open in the 4 hours before bedtime,
 /// and replaces it if bedtime changes. iOS keeps it at most 8 hours, so it doesn't span the night.
 enum LiveBedtime {
+    /// You → settings → bedtime countdown.
+    static var enabled: Bool {
+        get { Lock.defaults.object(forKey: "liveCountdown") as? Bool ?? true }
+        set { Lock.defaults.set(newValue, forKey: "liveCountdown"); refresh() }
+    }
+
     static func refresh() {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let bed = Lock.night().bed
         let untilBed = bed.timeIntervalSinceNow
-        let wanted = untilBed > 60 && untilBed < 4 * 3600 && Lock.hasApps
+        let wanted = enabled && untilBed > 60 && untilBed < 4 * 3600 && Lock.hasApps
         let running = Activity<BedtimeActivity>.activities
         for a in running where !wanted || a.attributes.bedtime != bed {
             Task { await a.end(nil, dismissalPolicy: .immediate) }

@@ -466,6 +466,7 @@ struct YouTab: View {
     var report: (CGRect) -> Void = { _ in }
     @State private var sheet: TonightTab.SheetKind?
     @State private var confirmDelete = false
+    @State private var liveCountdown = LiveBedtime.enabled
     @State private var deleteFailed = false
     @Environment(\.openURL) private var openURL
 
@@ -495,7 +496,11 @@ struct YouTab: View {
                     row("bedtime", "\(UserStore.clock(store.wantMinutes))\(UserStore.ampm(store.wantMinutes))") { sheet = .bed }
                     row("wake up", "\(UserStore.clock(store.wakeMinutes))\(UserStore.ampm(store.wakeMinutes))") { sheet = .wake }
                     row("resting apps", "\(store.restingCount == 0 ? "none" : "\(store.restingCount)") ›") { sheet = .apps }
-                    row("rest days saved", "\(store.restDaysLeft) of \(UserStore.maxRestDays)", last: true)
+                    row("rest days saved", "\(store.restDaysLeft) of \(UserStore.maxRestDays)")
+                    row("bedtime countdown on lock screen", liveCountdown ? "on" : "off", last: true) {
+                        liveCountdown.toggle()
+                        LiveBedtime.enabled = liveCountdown
+                    }
                 }
                 .card()
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
