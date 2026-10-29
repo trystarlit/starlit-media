@@ -300,7 +300,7 @@ struct StreakView: View {
             .padding(.horizontal, 6)
             Rectangle().fill(Theme.line).frame(height: 1)
             Text((justKept ? "night \(store.nightsKept) is in your sky, \(store.displayNameOrYou). " : "you're glowing, \(store.displayNameOrYou). ")
-                 + "\(left) more \(left == 1 ? "night" : "nights") and your sky unlocks a new color ✦")
+                 + "\(left) more \(left == 1 ? "night" : "nights") to a \(next)-night streak ✦")
                 .font(Theme.font(15)).foregroundColor(Theme.ivory).multilineTextAlignment(.center).padding(.horizontal, 8)
         }
         .padding(.horizontal, 12).padding(.top, 16).padding(.bottom, 18)
