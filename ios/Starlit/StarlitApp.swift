@@ -4,7 +4,7 @@ import SwiftUI
 struct StarlitApp: App {
     @StateObject private var store = UserStore()
     @StateObject private var subscriptions = Subscriptions()
-    @State private var cloud = Cloud()
+    private let cloud = Cloud.shared
 
     var body: some Scene {
         WindowGroup {

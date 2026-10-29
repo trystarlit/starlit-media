@@ -497,17 +497,20 @@ struct PaywallStep: View {
             }
             .padding(.top, 6).rise(2)
             Spacer()
-            plan(title: "yearly · $39.99", sub: "7 days free, then $3.33/mo", badge: "best value", on: annual) { annual = true }
-            plan(title: "monthly · $7.99", sub: "no free trial", badge: nil, on: !annual) { annual = false }
+            plan(title: "yearly · \(subscriptions.annualPrice)", sub: "7 days free, then \(subscriptions.annualPerMonth)/mo", badge: "best value", on: annual) { annual = true }
+            plan(title: "monthly · \(subscriptions.monthlyPrice)", sub: "no free trial", badge: nil, on: !annual) { annual = false }
             HStack {
                 Text("today: full access"); Spacer(); Text("day 5: reminder"); Spacer(); Text("day 7: trial ends")
             }
+            .opacity(annual ? 1 : 0)
             .font(Theme.font(12)).foregroundColor(Theme.muted).padding(.horizontal, 4)
             PrimaryButton(title: busy ? "one sec…" : annual ? "start my 7 free nights" : "continue", enabled: !busy) {
                 run { try await subscriptions.purchase(annual: annual) }
             }
-            Text(annual ? "7 days free, then $39.99/year. cancel anytime." : "$7.99/month. cancel anytime.")
-                .font(Theme.font(12)).foregroundColor(Theme.muted).frame(maxWidth: .infinity)
+            Text(annual ? "7 days free, then \(subscriptions.annualPrice)/year. renews automatically until you cancel in Settings, at least 24 hours before it renews."
+                        : "\(subscriptions.monthlyPrice)/month. renews automatically until you cancel in Settings, at least 24 hours before it renews.")
+                .font(Theme.font(12)).foregroundColor(Theme.muted).multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true).frame(maxWidth: .infinity)
             HStack(spacing: 18) {
                 Button("restore") {
                     Haptics.tap()

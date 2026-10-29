@@ -163,6 +163,7 @@ enum Links {
     static let terms = URL(string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
     /// Lives on the waitlist site (source: site/deploy/privacy/ in the starlit-context folder). Live once that folder is deployed.
     static let privacy = URL(string: "https://trystarlit.netlify.app/privacy/")!
+    static let contact = URL(string: "mailto:starlitapp.hq@gmail.com")!
 }
 
 struct PressStyle: ButtonStyle {

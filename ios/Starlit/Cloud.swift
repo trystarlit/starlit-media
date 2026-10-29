@@ -7,6 +7,7 @@ import Supabase
 /// Table + security rules: supabase/schema.sql.
 @MainActor
 final class Cloud {
+    static let shared = Cloud()
     private let client: SupabaseClient?
     private var bag = Set<AnyCancellable>()
 
@@ -46,6 +47,20 @@ final class Cloud {
             }
             .store(in: &bag)
         await push(Profile(id: userID, store: store))
+    }
+
+    /// "delete my data": deletes the anonymous account and its backup, then signs out
+    /// (the next launch starts a fresh anonymous user). Returns false if the server couldn't be reached.
+    func deleteEverything() async -> Bool {
+        bag.removeAll()   // stop backing up
+        guard let client else { return true }
+        do {
+            try await client.rpc("delete_me").execute()
+        } catch {
+            return false
+        }
+        try? await client.auth.signOut()
+        return true
     }
 
     private func push(_ profile: Profile) async {

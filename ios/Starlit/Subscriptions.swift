@@ -1,5 +1,6 @@
 import SwiftUI
 import RevenueCat
+import UserNotifications
 
 /// The hard paywall: RevenueCat offerings, purchase and restore.
 /// Without a RevenueCat key it stays off and every purchase "succeeds", so the app can still be tested end to end.
@@ -11,6 +12,13 @@ final class Subscriptions: ObservableObject {
     @Published private(set) var checked = !Config.hasRevenueCat
     @Published private(set) var annual: Package?
     @Published private(set) var monthly: Package?
+    /// When the free week ends, while the user is in it.
+    @Published private(set) var trialEnds: Date?
+
+    // The App Store's own prices (right currency for every country); the US prices until offerings load.
+    var annualPrice: String { annual?.storeProduct.localizedPriceString ?? "$39.99" }
+    var annualPerMonth: String { annual?.storeProduct.localizedPricePerMonth ?? "$3.33" }
+    var monthlyPrice: String { monthly?.storeProduct.localizedPriceString ?? "$7.99" }
 
     init() {
         guard Config.hasRevenueCat else { return }
@@ -60,6 +68,24 @@ final class Subscriptions: ObservableObject {
     // starlit has one tier, so any active entitlement unlocks it (RevenueCat's is "starlit unlimited").
     private func apply(_ info: CustomerInfo) {
         isActive = !info.entitlements.active.isEmpty
+        let trial = info.entitlements.active.values.first { $0.periodType == .trial }
+        trialEnds = trial?.expirationDate
+    }
+
+    /// The paywall promises a reminder before the free week ends: 2 days before, on this phone.
+    /// Safe to call often (same id replaces); does nothing without notification permission.
+    func scheduleTrialReminder() {
+        let center = UNUserNotificationCenter.current()
+        guard let end = trialEnds,
+              let fire = Calendar.current.date(byAdding: .day, value: -2, to: end), fire > Date() else {
+            center.removePendingNotificationRequests(withIdentifiers: ["trialReminder"])
+            return
+        }
+        let content = UNMutableNotificationContent()
+        content.title = "starlit"
+        content.body = "your free week ends in 2 days. keep going, or cancel anytime in Settings."
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: fire.timeIntervalSinceNow, repeats: false)
+        center.add(UNNotificationRequest(identifier: "trialReminder", content: content, trigger: trigger))
     }
 }
 

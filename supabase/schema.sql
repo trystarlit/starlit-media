@@ -29,6 +29,13 @@ create policy "own profile: insert" on public.profiles for insert with check (au
 drop policy if exists "own profile: update" on public.profiles;
 create policy "own profile: update" on public.profiles for update using (auth.uid() = id) with check (auth.uid() = id);
 
+-- "delete my data" in the app: removes this anonymous user, and with it (cascade) their backup
+create or replace function public.delete_me() returns void language sql security definer set search_path = '' as $$
+  delete from auth.users where id = auth.uid();
+$$;
+revoke all on function public.delete_me() from public, anon;
+grant execute on function public.delete_me() to authenticated;
+
 create or replace function public.touch_updated_at() returns trigger language plpgsql as $$
 begin new.updated_at = now(); return new; end $$;
 

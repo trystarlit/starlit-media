@@ -1,4 +1,5 @@
 import SwiftUI
+import FamilyControls
 
 /// After onboarding: tonight · sky · you, with a glass tab bar, plus full-screen moments
 /// (resting, locked app, goodnight, morning, streak). The real lock (Screen Time) is wired in once Family Controls is approved.
@@ -19,6 +20,7 @@ enum Moment: Equatable {
 
 struct MainView: View {
     @EnvironmentObject var store: UserStore
+    @EnvironmentObject var subscriptions: Subscriptions
     @State private var tab: AppTab = .tonight
     @State private var moment: Moment?
     @State private var litPending = false
@@ -135,6 +137,7 @@ struct MainView: View {
     /// unlock sheet when the shield's "i need it" sent us here.
     private func checkLock() {
         store.syncLock()
+        subscriptions.scheduleTrialReminder()
         guard !welcome, stop == nil, !allSet else { return }
         let kept = Lock.keptPending
         if kept > 0 {
@@ -460,6 +463,9 @@ struct YouTab: View {
     var preview: (Moment) -> Void
     var report: (CGRect) -> Void = { _ in }
     @State private var sheet: TonightTab.SheetKind?
+    @State private var confirmDelete = false
+    @State private var deleteFailed = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
         ScrollView(showsIndicators: false) {
@@ -491,15 +497,25 @@ struct YouTab: View {
                 }
                 .card()
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
-                Label12("preview screens").padding(.top, 8)
+                Label12("more").padding(.top, 8)
+                VStack(spacing: 0) {
+                    row("app tour", "›") { store.touredApp = false }
+                    row("privacy policy", "↗") { openURL(Links.privacy) }
+                    row("terms of use", "↗") { openURL(Links.terms) }
+                    row("contact us", "↗") { openURL(Links.contact) }
+                    row("delete my data", "", last: true) { confirmDelete = true }
+                }
+                .card()
+                #if DEBUG
+                Label12("preview screens (debug only)").padding(.top, 8)
                 VStack(spacing: 0) {
                     row("streak screen", "›") { preview(.streak(justKept: false)) }
                     row("locked app screen", "›") { preview(.shield(store.keepsUp.sorted().first ?? "tiktok")) }
                     row("morning: kept your night", "›") { preview(.morning) }
-                    row("app tour", "›") { store.touredApp = false }
                     row("restart onboarding", "↺", last: true) { store.reset() }
                 }
                 .card()
+                #endif
             }
             .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 110)
         }
@@ -511,6 +527,23 @@ struct YouTab: View {
             }
         }
         .onAppear { store.refreshRestDays() }
+        .alert("delete my data?", isPresented: $confirmDelete) {
+            Button("delete", role: .destructive) {
+                Task {
+                    guard await Cloud.shared.deleteEverything() else { deleteFailed = true; return }
+                    store.selection = FamilyActivitySelection()
+                    store.reset()
+                }
+            }
+            Button("cancel", role: .cancel) {}
+        } message: {
+            Text("this erases your sky, streak, answers and backup, and stops resting your apps. it can't be undone. your subscription stays active; manage it in the App Store.")
+        }
+        .alert("couldn't delete right now", isPresented: $deleteFailed) {
+            Button("ok", role: .cancel) {}
+        } message: {
+            Text("check your connection and try again.")
+        }
     }
 
     private func stat(_ v: String, _ k: String) -> some View {
