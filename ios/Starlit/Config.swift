@@ -12,6 +12,15 @@ enum Config {
     /// Supabase → Project Settings → API Keys: the publishable key (sb_publishable_…), or the legacy anon key.
     static let supabaseAnonKey = "sb_publishable_F3TcFAf85TCMCm90Og-AeQ_lguwG4n6"
 
-    static var hasRevenueCat: Bool { !revenueCatKey.isEmpty }
+    /// TestFlight beta: everything is free for testers, so RevenueCat stays off.
+    static let isTestFlight: Bool = {
+        #if DEBUG
+        return false
+        #else
+        return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+        #endif
+    }()
+
+    static var hasRevenueCat: Bool { !revenueCatKey.isEmpty && !isTestFlight }
     static var hasSupabase: Bool { !supabaseURL.isEmpty && !supabaseAnonKey.isEmpty }
 }

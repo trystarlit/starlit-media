@@ -310,8 +310,8 @@ struct TonightTab: View {
                 TimelineView(.periodic(from: .now, by: 30)) { ctx in
                     let m = minutesUntilBed(ctx.date)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(m > 16 * 60 ? "resting now" : "bedtime in").font(Theme.font(15)).foregroundColor(Theme.muted)
-                        Text(m > 16 * 60 ? UserStore.clock(store.wakeMinutes) : "\(m / 60)h \(String(format: "%02d", m % 60))m")
+                        Text(Lock.isBedtime(ctx.date) ? "resting until" : "bedtime in").font(Theme.font(15)).foregroundColor(Theme.muted)
+                        Text(Lock.isBedtime(ctx.date) ? UserStore.clock(store.wakeMinutes) : "\(m / 60)h \(String(format: "%02d", m % 60))m")
                             .font(Theme.font(54, .light)).tracking(-2.4).monospacedDigit().foregroundColor(Theme.ivory)
                     }
                     .padding(20)

@@ -504,6 +504,10 @@ struct PaywallStep: View {
             }
             .opacity(annual ? 1 : 0)
             .font(Theme.font(12)).foregroundColor(Theme.muted).padding(.horizontal, 4)
+            if Config.isTestFlight {
+                Text("beta: free for testers. you won't be charged.")
+                    .font(Theme.font(13, .medium)).foregroundColor(Theme.amber).frame(maxWidth: .infinity)
+            }
             PrimaryButton(title: busy ? "one sec…" : annual ? "start my 7 free nights" : "continue", enabled: !busy) {
                 run { try await subscriptions.purchase(annual: annual) }
             }

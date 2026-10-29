@@ -114,7 +114,12 @@ enum Lock {
         let s = DeviceActivitySchedule(intervalStart: DateComponents(hour: bedMinutes / 60, minute: bedMinutes % 60),
                                        intervalEnd: DateComponents(hour: wakeMinutes / 60, minute: wakeMinutes % 60),
                                        repeats: true)
-        try? center.startMonitoring(bedtime, during: s)
+        // re-registering mid-night can end the interval (and credit a fake kept night), so only when times change
+        let key = "\(bedMinutes)-\(wakeMinutes)"
+        if defaults.string(forKey: "scheduled") != key || !center.activities.contains(bedtime) {
+            try? center.startMonitoring(bedtime, during: s)
+            defaults.set(key, forKey: "scheduled")
+        }
         if isBedtime() { startNight() }
     }
 

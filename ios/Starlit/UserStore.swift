@@ -94,7 +94,10 @@ final class UserStore: ObservableObject {
             // after midnight it's still last night's rest
             let afterMidnight = Calendar.current.component(.hour, from: Date()) < 12
             restDaysLeft -= 1
-            restedDays.insert((UserStore.weekdayIndex + (afterMidnight ? 6 : 0)) % 7)
+            // monday after midnight is last week's sunday night; this week's dots don't show it
+            if !(afterMidnight && UserStore.weekdayIndex == 0) {
+                restedDays.insert((UserStore.weekdayIndex + (afterMidnight ? 6 : 0)) % 7)
+            }
             return true
         }
         streak = 0
