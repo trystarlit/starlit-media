@@ -276,8 +276,8 @@ struct TonightTab: View {
         }
         .sheet(item: $sheet) { k in
             switch k {
-            case .bed: TimeSheet(title: "bedtime", values: .times(21 * 60, 25 * 60), value: $store.wantMinutes)
-            case .wake: TimeSheet(title: "wake up", values: .times(5 * 60, 10 * 60), value: $store.wakeMinutes)
+            case .bed: TimeSheet(title: "bedtime", values: .bedtimes, value: $store.wantMinutes)
+            case .wake: TimeSheet(title: "wake up", values: .wakeTimes, value: $store.wakeMinutes)
             case .apps: AppsSheet().environmentObject(store)
             }
         }
@@ -523,8 +523,8 @@ struct YouTab: View {
         }
         .sheet(item: $sheet) { k in
             switch k {
-            case .bed: TimeSheet(title: "bedtime", values: .times(21 * 60, 25 * 60), value: $store.wantMinutes)
-            case .wake: TimeSheet(title: "wake up", values: .times(5 * 60, 10 * 60), value: $store.wakeMinutes)
+            case .bed: TimeSheet(title: "bedtime", values: .bedtimes, value: $store.wantMinutes)
+            case .wake: TimeSheet(title: "wake up", values: .wakeTimes, value: $store.wakeMinutes)
             case .apps: AppsSheet().environmentObject(store)
             }
         }

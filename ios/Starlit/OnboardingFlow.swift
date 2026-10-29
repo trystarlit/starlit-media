@@ -19,10 +19,10 @@ struct OnboardingFlow: View {
                 case .name: NameStep(next: go(.goals))
                 case .goals: GoalsStep(next: go(.want))
                 case .want: TimeStep(title: ("what time do you ", "want", " to sleep?"), sub: "scroll to pick. you can change it anytime.",
-                                     options: .times(21 * 60, 25 * 60),            // 9:00pm – 1:00am
+                                     options: .bedtimes,
                                      value: $store.wantMinutes, next: go(.actual))
                 case .actual: TimeStep(title: ("and what time does it ", "actually", " happen?"), sub: "be honest. nobody's judging.",
-                                       options: .times(max(21 * 60 + 30, store.wantMinutes), 28 * 60),   // up to 4:00am
+                                       options: .times(max(18 * 60 + 30, store.wantMinutes), 29 * 60),   // up to 5:00am
                                        value: $store.actualMinutes, next: go(.mirror))
                 case .mirror: MirrorStep(next: go(.mornings))
                 case .mornings: SingleChoiceStep(title: ("how do your ", "mornings", " feel right now?"),

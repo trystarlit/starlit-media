@@ -81,4 +81,9 @@ struct TimeSheet: View {
 
 extension Array where Element == Int {
     static func times(_ from: Int, _ to: Int, step: Int = 15) -> [Int] { Array(stride(from: from, through: to, by: step)) }
+
+    /// Bedtimes from 6:00pm to 3:00am (minutes past the evening's midnight; over 1440 is after midnight).
+    static var bedtimes: [Int] { times(18 * 60, 27 * 60) }
+    /// Wake times from 4:00am to 12:00pm.
+    static var wakeTimes: [Int] { times(4 * 60, 12 * 60) }
 }
