@@ -1,4 +1,6 @@
 import SwiftUI
+import FamilyControls
+import UserNotifications
 
 /// Shown once, right after the first purchase: welcome → screen time → resting apps.
 /// Then MainView walks through the app stop by stop (`TourStop` + `Spotlight`) and ends on `AllSetView`.
@@ -75,6 +77,7 @@ private struct WelcomeStep: View {
 }
 
 private struct ScreenTimeStep: View {
+    @EnvironmentObject var store: UserStore
     var next: () -> Void
 
     var body: some View {
@@ -88,8 +91,16 @@ private struct ScreenTimeStep: View {
             Text("at bedtime, screen time keeps them closed until you wake up. it all stays on your phone.")
                 .font(Theme.font(16)).foregroundColor(Theme.muted).rise(2)
             Spacer()
-            // TODO: ask AuthorizationCenter for .individual access here once the Screen Time lock is built.
-            PrimaryButton(title: "allow screen time", action: next).rise(3)
+            PrimaryButton(title: "allow screen time") {
+                Task {
+                    try? await AuthorizationCenter.shared.requestAuthorization(for: .individual)
+                    // the shield's "i need it" reaches the app through a notification
+                    _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound])
+                    store.syncLock()
+                    next()
+                }
+            }
+            .rise(3)
         }
     }
 }
@@ -102,18 +113,11 @@ private struct TourAppsStep: View {
         VStack(alignment: .leading, spacing: 12) {
             Spacer().frame(height: 50)
             Headline("these rest at ", amber: UserStore.clock(store.wantMinutes), ".").rise(0)
-            Text("tap to change. you can edit this anytime.").font(Theme.font(15)).foregroundColor(Theme.muted).padding(.bottom, 8).rise(1)
-            // TODO: swap for Apple's FamilyActivityPicker once the Screen Time lock is built.
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                ForEach(KeepsUpStep.apps, id: \.self) { a in
-                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true, leading: KeepsUpStep.icon(a)) {
-                        if store.keepsUp.contains(a) { store.keepsUp.remove(a) } else { store.keepsUp.insert(a) }
-                    }
-                }
-            }
-            .rise(2)
-            Spacer()
-            PrimaryButton(title: "continue", enabled: !store.keepsUp.isEmpty, action: next).rise(3)
+            Text(store.screenTimeOK ? "pick the apps that keep you up. you can change them anytime."
+                                    : "tap to change. you can edit this anytime.")
+                .font(Theme.font(15)).foregroundColor(Theme.muted).padding(.bottom, 8).rise(1)
+            ScrollView(showsIndicators: false) { RestingAppsPicker() }.rise(2)
+            PrimaryButton(title: "continue", enabled: store.restingCount > 0, action: next).rise(3)
         }
     }
 }

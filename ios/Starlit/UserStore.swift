@@ -1,4 +1,5 @@
 import SwiftUI
+import FamilyControls
 
 /// Everything we learn in onboarding, saved on the device with UserDefaults (no account in v1).
 final class UserStore: ObservableObject {
@@ -25,6 +26,10 @@ final class UserStore: ObservableObject {
     static let maxRestDays = 3
     /// Saw the welcome tour that runs after the first purchase.
     @Published var touredApp: Bool { didSet { d.set(touredApp, forKey: "touredApp") } }
+    /// The apps that rest at bedtime, from Apple's picker (stored where the lock extensions can read it).
+    @Published var selection: FamilyActivitySelection { didSet { Lock.selection = selection } }
+    /// Screen Time access is allowed, so the real lock and app picker work.
+    @Published var screenTimeOK: Bool
 
     init() {
         // a local copy: reading self.d here would use self before every stored property is set (compile error)
@@ -44,7 +49,22 @@ final class UserStore: ObservableObject {
         restWeek = d.integer(forKey: "restWeek")
         restedDays = Set(d.array(forKey: "restedDays") as? [Int] ?? [])
         touredApp = d.bool(forKey: "touredApp")
+        selection = Lock.selection
+        screenTimeOK = AuthorizationCenter.shared.authorizationStatus == .approved
         refreshRestDays()
+    }
+
+    /// How many apps (or app categories) rest at bedtime.
+    var restingCount: Int {
+        screenTimeOK ? selection.applicationTokens.count + selection.categoryTokens.count : keepsUp.count
+    }
+
+    /// Hands bedtime, wake time and the apps to the lock and re-registers tonight's schedule.
+    func syncLock() {
+        screenTimeOK = AuthorizationCenter.shared.authorizationStatus == .approved
+        Lock.bedMinutes = ((wantMinutes % 1440) + 1440) % 1440
+        Lock.wakeMinutes = ((wakeMinutes % 1440) + 1440) % 1440
+        if screenTimeOK { Lock.schedule() }
     }
 
     static var currentWeek: Int {

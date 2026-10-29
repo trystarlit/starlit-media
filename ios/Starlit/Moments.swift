@@ -56,13 +56,21 @@ struct RestingView: View {
             .padding(.top, 30)
             Spacer()
             Label12("resting till morning · tap one")
-            FlowLayout(spacing: 8) {
-                ForEach(restingApps(store), id: \.self) { a in
-                    Button { Haptics.warning(); openApp(a) } label: {
-                        Text(a).font(Theme.font(15)).foregroundColor(Theme.muted)
-                            .padding(.horizontal, 16).padding(.vertical, 10).card(14)
+            if store.screenTimeOK && store.restingCount > 0 {
+                Button { Haptics.warning(); openApp("") } label: {
+                    RestingAppIcons(size: 34, limit: 8).opacity(0.55)
+                        .padding(.horizontal, 14).padding(.vertical, 12).card(18)
+                }
+                .buttonStyle(PressStyle())
+            } else {
+                FlowLayout(spacing: 8) {
+                    ForEach(restingApps(store), id: \.self) { a in
+                        Button { Haptics.warning(); openApp(a) } label: {
+                            Text(a).font(Theme.font(15)).foregroundColor(Theme.muted)
+                                .padding(.horizontal, 16).padding(.vertical, 10).card(14)
+                        }
+                        .buttonStyle(PressStyle())
                     }
-                    .buttonStyle(PressStyle())
                 }
             }
             Button("back to app", action: close).font(Theme.font(15)).foregroundColor(Theme.muted).frame(maxWidth: .infinity).padding(10)
@@ -75,6 +83,8 @@ struct RestingView: View {
 struct ShieldView: View {
     @EnvironmentObject var store: UserStore
     var app: String
+    /// Opens straight on the unlock sheet (the shield's "i need it" brought us here).
+    var askNow = false
     var backToSleep: () -> Void
     var unlocked: () -> Void
     @State private var shake = 0
@@ -83,7 +93,7 @@ struct ShieldView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Spacer()
-            (Text("night ") + Text("\(store.nightsKept + 1)").foregroundColor(Theme.amber) + Text(" · \(app)"))
+            (Text("night ") + Text("\(store.nightsKept + 1)").foregroundColor(Theme.amber) + Text(app.isEmpty ? "" : " · \(app)"))
                 .font(Theme.font(12)).tracking(0.3).foregroundColor(Theme.muted)
             Headline("your phone is ", amber: "resting", " until \(UserStore.clock(store.wakeMinutes)).", size: 36)
             Text("tonight's star is waiting for you, \(store.displayNameOrYou).").font(Theme.font(15)).foregroundColor(Theme.muted)
@@ -99,7 +109,10 @@ struct ShieldView: View {
         .background(TwinkleSky(stars: store.nightsKept, seed: 31, dust: 70, height: 0.3).background(Theme.night).ignoresSafeArea())
         .contentShape(Rectangle())
         .onTapGesture { Haptics.warning(); withAnimation(.linear(duration: 0.45)) { shake += 1 } }
-        .onAppear { store.refreshRestDays() }
+        .onAppear {
+            store.refreshRestDays()
+            if askNow { asking = true }
+        }
         .sheet(isPresented: $asking) {
             Group {
                 if store.restDaysLeft > 0 { useRestNight } else { unlockAnyway }

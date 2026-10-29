@@ -30,6 +30,8 @@ struct MainView: View {
     @State private var stop: TourStop?
     @State private var allSet = false
     @State private var stopRects: [TourStop: CGRect] = [:]
+    @State private var askNow = false
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
         ZStack(alignment: .bottom) {
@@ -39,7 +41,10 @@ struct MainView: View {
                 case .tonight:
                     TonightTab(openSky: { switchTo(.sky) },
                                openStreak: { show(.streak(justKept: false)) },
-                               restNow: { show(.resting) },
+                               restNow: {
+                                   if store.screenTimeOK { Lock.startNight() }
+                                   show(.resting)
+                               },
                                focus: stop,
                                report: { stopRects[$0] = $1 })
                 case .sky:
@@ -96,6 +101,12 @@ struct MainView: View {
         .onAppear {
             #if DEBUG
             // Launch with `-tourShot setup1` / `stop3` / `allset` to open the tour on that screen (for screenshots).
+            // `-resetLockTest YES` undoes a lock test: gives back the rest night and lets tonight lock again
+            if !Self.shotUsed, UserDefaults.standard.bool(forKey: "resetLockTest") {
+                Lock.resetTestNight()
+                store.restedDays.remove((UserStore.weekdayIndex + (Calendar.current.component(.hour, from: Date()) < 12 ? 6 : 0)) % 7)
+                store.restDaysLeft = min(UserStore.maxRestDays, store.restDaysLeft + 1)
+            }
             if !Self.shotUsed, let shot = UserDefaults.standard.string(forKey: "tourShot") {
                 Self.shotUsed = true
                 if shot.hasPrefix("setup") { welcomeStart = Int(shot.dropFirst(5)) ?? 0; welcome = true }
@@ -108,9 +119,32 @@ struct MainView: View {
             }
             #endif
             if !store.touredApp { welcome = true }
+            checkLock()
         }
         .onChange(of: store.touredApp) { _, toured in
             if !toured && store.onboarded { moment = nil; welcome = true }
+        }
+        .onChange(of: scenePhase) { _, phase in if phase == .active { checkLock() } }
+        .onChange(of: store.wantMinutes) { store.syncLock() }
+        .onChange(of: store.wakeMinutes) { store.syncLock() }
+        .onChange(of: store.selection) { store.syncLock() }
+        .onChange(of: moment) { _, m in if m == nil { askNow = false } }
+    }
+
+    /// Catches up with the lock: celebrates nights kept while the app was closed, or opens the
+    /// unlock sheet when the shield's "i need it" sent us here.
+    private func checkLock() {
+        store.syncLock()
+        guard !welcome, stop == nil, !allSet else { return }
+        let kept = Lock.keptPending
+        if kept > 0 {
+            Lock.keptPending = 0
+            for _ in 1..<kept { store.keepNight() }   // the morning screen keeps the last one
+            show(.morning)
+        } else if Lock.askUnlock {
+            Lock.askUnlock = false
+            askNow = true
+            show(.shield(""))
         }
     }
 
@@ -134,14 +168,15 @@ struct MainView: View {
         switch m {
         case .resting:
             RestingView(previewNow: stop == .resting ? (store.wantMinutes + 75) % 1440 : nil,
-                        openApp: { show(.shield($0)) }, close: { show(nil) })
+                        openApp: { show(.shield($0)) },
+                        close: { Lock.cancelEarlyRest(); show(nil) })
         case .shield(let app):
-            ShieldView(app: app,
+            ShieldView(app: app, askNow: askNow,
                        backToSleep: {
                            show(.goodnight)
                            DispatchQueue.main.asyncAfter(deadline: .now() + 2.6) { if moment == .goodnight { show(.resting) } }
                        },
-                       unlocked: { store.missNight(); show(nil) })
+                       unlocked: { store.missNight(); Lock.breakNight(); show(nil) })
         case .goodnight:
             GoodnightView()
         case .morning:
@@ -214,8 +249,9 @@ struct TonightTab: View {
                     .id(TourStop.skyCard)
                 HStack(spacing: 10) {
                     miniCard(top: "phone rests", value: "\(UserStore.clock(store.wantMinutes)) → \(UserStore.clock(store.wakeMinutes))", bottom: "tap to edit") { sheet = .bed }
-                    miniCard(top: "resting apps", value: store.keepsUp.isEmpty ? "none" : "\(store.keepsUp.count)",
-                             bottom: store.keepsUp.isEmpty ? "tap to pick" : store.keepsUp.sorted().prefix(2).joined(separator: ", ")) { sheet = .apps }
+                    miniCard(top: "resting apps", value: store.restingCount == 0 ? "none" : "\(store.restingCount)",
+                             bottom: store.restingCount == 0 ? "tap to pick" : store.keepsUp.sorted().prefix(2).joined(separator: ", "),
+                             icons: store.screenTimeOK && store.restingCount > 0) { sheet = .apps }
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report(.appsCard, $0) }
                     .id(TourStop.appsCard)
                 }
@@ -302,12 +338,17 @@ struct TonightTab: View {
         return ((store.wantMinutes % 1440) - now + 1440) % 1440
     }
 
-    private func miniCard(top: String, value: String, bottom: String, tap: @escaping () -> Void) -> some View {
+    /// `icons` swaps the bottom line for the real icons of the resting apps.
+    private func miniCard(top: String, value: String, bottom: String, icons: Bool = false, tap: @escaping () -> Void) -> some View {
         Button { Haptics.tap(); tap() } label: {
             VStack(alignment: .leading, spacing: 6) {
                 Text(top).font(Theme.font(13)).foregroundColor(Theme.muted)
                 Text(value).font(Theme.font(22)).tracking(-0.5).monospacedDigit().foregroundColor(Theme.ivory)
-                Text(bottom).font(Theme.font(12)).foregroundColor(Theme.muted).lineLimit(1)
+                if icons {
+                    RestingAppIcons(size: 16, limit: 5).frame(height: 16)
+                } else {
+                    Text(bottom).font(Theme.font(12)).foregroundColor(Theme.muted).lineLimit(1)
+                }
             }
             .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
             .padding(16).card()
@@ -445,7 +486,7 @@ struct YouTab: View {
                 VStack(spacing: 0) {
                     row("bedtime", "\(UserStore.clock(store.wantMinutes))\(UserStore.ampm(store.wantMinutes))") { sheet = .bed }
                     row("wake up", "\(UserStore.clock(store.wakeMinutes))\(UserStore.ampm(store.wakeMinutes))") { sheet = .wake }
-                    row("resting apps", "\(store.keepsUp.isEmpty ? "none" : "\(store.keepsUp.count)") ›") { sheet = .apps }
+                    row("resting apps", "\(store.restingCount == 0 ? "none" : "\(store.restingCount)") ›") { sheet = .apps }
                     row("rest days saved", "\(store.restDaysLeft) of \(UserStore.maxRestDays)", last: true)
                 }
                 .card()
@@ -512,13 +553,7 @@ struct AppsSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text("resting apps").font(Theme.font(24)).foregroundColor(Theme.ivory).padding(.top, 26)
-            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
-                ForEach(KeepsUpStep.apps, id: \.self) { a in
-                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true, leading: KeepsUpStep.icon(a)) {
-                        if store.keepsUp.contains(a) { store.keepsUp.remove(a) } else { store.keepsUp.insert(a) }
-                    }
-                }
-            }
+            ScrollView(showsIndicators: false) { RestingAppsPicker() }
             Spacer(minLength: 0)
             PrimaryButton(title: "done") { Haptics.success(); dismiss() }
         }
