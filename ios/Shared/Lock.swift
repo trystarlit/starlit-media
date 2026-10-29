@@ -65,6 +65,9 @@ enum Lock {
     }
 
     static func endNight() {
+        // re-registering the schedule (e.g. after an app update) can end the interval mid-night;
+        // only a real end at wake time counts, otherwise the night goes on locked
+        guard !isBedtime() else { return }
         if nightOpen { keptPending += 1 }
         nightOpen = false
         settings.clearAllSettings()
