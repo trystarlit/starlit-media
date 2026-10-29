@@ -130,6 +130,8 @@ struct MainView: View {
         .onChange(of: store.wantMinutes) { store.syncLock() }
         .onChange(of: store.wakeMinutes) { store.syncLock() }
         .onChange(of: store.selection) { store.syncLock() }
+        .onChange(of: store.streak) { store.syncLock() }
+        .onChange(of: store.nightsKept) { store.syncLock() }
         .onChange(of: moment) { _, m in if m == nil { askNow = false } }
     }
 

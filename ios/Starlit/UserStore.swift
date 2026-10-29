@@ -1,5 +1,6 @@
 import SwiftUI
 import FamilyControls
+import WidgetKit
 
 /// Everything we learn in onboarding, saved on the device with UserDefaults (no account in v1).
 final class UserStore: ObservableObject {
@@ -64,7 +65,11 @@ final class UserStore: ObservableObject {
         screenTimeOK = AuthorizationCenter.shared.authorizationStatus == .approved
         Lock.bedMinutes = ((wantMinutes % 1440) + 1440) % 1440
         Lock.wakeMinutes = ((wakeMinutes % 1440) + 1440) % 1440
+        Lock.streak = streak
+        Lock.nightsKept = nightsKept
         if screenTimeOK { Lock.schedule() }
+        WidgetCenter.shared.reloadAllTimelines()
+        LiveBedtime.refresh()
     }
 
     static var currentWeek: Int {

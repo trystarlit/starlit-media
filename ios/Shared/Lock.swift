@@ -2,6 +2,7 @@ import Foundation
 import FamilyControls
 import ManagedSettings
 import DeviceActivity
+import WidgetKit
 
 /// The Screen Time lock, shared by the app and its extensions through the app group.
 /// The monitor extension calls `startNight` at bedtime and `endNight` at wake time.
@@ -60,12 +61,14 @@ enum Lock {
         if !nightOpen { askUnlock = false }   // a new night starts with the plain shield
         nightOpen = true
         shield()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     static func endNight() {
         if nightOpen { keptPending += 1 }
         nightOpen = false
         settings.clearAllSettings()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     /// Unlocked tonight: the apps open until next bedtime and tonight's star stays dark.
@@ -74,6 +77,7 @@ enum Lock {
         nightOpen = false
         brokenNight = nightID()
         settings.clearAllSettings()
+        WidgetCenter.shared.reloadAllTimelines()
     }
 
     #if DEBUG
@@ -112,6 +116,30 @@ enum Lock {
                                        repeats: true)
         try? center.startMonitoring(bedtime, during: s)
         if isBedtime() { startNight() }
+    }
+
+    // For the widgets: the app publishes these whenever they change.
+    static var streak: Int {
+        get { defaults.integer(forKey: "streak") }
+        set { defaults.set(newValue, forKey: "streak") }
+    }
+    static var nightsKept: Int {
+        get { defaults.integer(forKey: "nightsKept") }
+        set { defaults.set(newValue, forKey: "nightsKept") }
+    }
+
+    /// Tonight's bedtime and the wake time after it. While resting, it's the night already under way.
+    static func night(around date: Date = Date()) -> (bed: Date, wake: Date) {
+        let start = Calendar.current.startOfDay(for: date)
+        var bed = start.addingTimeInterval(TimeInterval(bedMinutes * 60))
+        if isBedtime(date) {
+            if bed > date { bed.addTimeInterval(-86_400) }   // after midnight: it started yesterday
+        } else if bed <= date {
+            bed.addTimeInterval(86_400)
+        }
+        var wake = Calendar.current.startOfDay(for: bed).addingTimeInterval(TimeInterval(wakeMinutes * 60))
+        if wake <= bed { wake.addTimeInterval(86_400) }
+        return (bed, wake)
     }
 
     static func isBedtime(_ date: Date = Date()) -> Bool {

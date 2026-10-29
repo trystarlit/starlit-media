@@ -12,6 +12,7 @@
 		C1000000000000000000010A /* StarlitMonitor.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C10000000000000000000101 /* StarlitMonitor.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C1000000000000000000020A /* StarlitShield.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C10000000000000000000201 /* StarlitShield.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		C1000000000000000000030A /* StarlitShieldAction.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C10000000000000000000301 /* StarlitShieldAction.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		C1000000000000000000040A /* StarlitWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = C10000000000000000000401 /* StarlitWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -36,6 +37,13 @@
 			remoteGlobalIDString = C10000000000000000000306;
 			remoteInfo = StarlitShieldAction;
 		};
+		C1000000000000000000040B /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = A10000000000000000000009 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C10000000000000000000406;
+			remoteInfo = StarlitWidgets;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -48,6 +56,7 @@
 				C1000000000000000000010A /* StarlitMonitor.appex in Embed Foundation Extensions */,
 				C1000000000000000000020A /* StarlitShield.appex in Embed Foundation Extensions */,
 				C1000000000000000000030A /* StarlitShieldAction.appex in Embed Foundation Extensions */,
+				C1000000000000000000040A /* StarlitWidgets.appex in Embed Foundation Extensions */,
 			);
 			name = "Embed Foundation Extensions";
 			runOnlyForDeploymentPostprocessing = 0;
@@ -59,6 +68,7 @@
 		C10000000000000000000101 /* StarlitMonitor.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StarlitMonitor.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C10000000000000000000201 /* StarlitShield.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StarlitShield.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		C10000000000000000000301 /* StarlitShieldAction.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StarlitShieldAction.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		C10000000000000000000401 /* StarlitWidgets.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = StarlitWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -67,6 +77,7 @@
 		C10000000000000000000202 /* StarlitShield */ = {isa = PBXFileSystemSynchronizedRootGroup; path = StarlitShield; sourceTree = "<group>"; };
 		C10000000000000000000302 /* StarlitShieldAction */ = {isa = PBXFileSystemSynchronizedRootGroup; path = StarlitShieldAction; sourceTree = "<group>"; };
 		C10000000000000000000001 /* Shared */ = {isa = PBXFileSystemSynchronizedRootGroup; path = Shared; sourceTree = "<group>"; };
+		C10000000000000000000402 /* StarlitWidgets */ = {isa = PBXFileSystemSynchronizedRootGroup; path = StarlitWidgets; sourceTree = "<group>"; };
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -142,6 +153,27 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C10000000000000000000403 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C10000000000000000000404 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C10000000000000000000405 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -153,6 +185,7 @@
 				C10000000000000000000102 /* StarlitMonitor */,
 				C10000000000000000000202 /* StarlitShield */,
 				C10000000000000000000302 /* StarlitShieldAction */,
+				C10000000000000000000402 /* StarlitWidgets */,
 				A10000000000000000000005 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -164,6 +197,7 @@
 				C10000000000000000000101 /* StarlitMonitor.appex */,
 				C10000000000000000000201 /* StarlitShield.appex */,
 				C10000000000000000000301 /* StarlitShieldAction.appex */,
+				C10000000000000000000401 /* StarlitWidgets.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -186,6 +220,7 @@
 				C1000000000000000000010C /* PBXTargetDependency */,
 				C1000000000000000000020C /* PBXTargetDependency */,
 				C1000000000000000000030C /* PBXTargetDependency */,
+				C1000000000000000000040C /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				A10000000000000000000002 /* Starlit */,
@@ -269,6 +304,29 @@
 			productReference = C10000000000000000000301 /* StarlitShieldAction.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
+		C10000000000000000000406 /* StarlitWidgets */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C10000000000000000000407 /* Build configuration list for PBXNativeTarget "StarlitWidgets" */;
+			buildPhases = (
+				C10000000000000000000403 /* Sources */,
+				C10000000000000000000404 /* Frameworks */,
+				C10000000000000000000405 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C10000000000000000000402 /* StarlitWidgets */,
+				C10000000000000000000001 /* Shared */,
+			);
+			name = StarlitWidgets;
+			packageProductDependencies = (
+			);
+			productName = StarlitWidgets;
+			productReference = C10000000000000000000401 /* StarlitWidgets.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -289,6 +347,9 @@
 						CreatedOnToolsVersion = 27.1;
 					};
 					C10000000000000000000306 = {
+						CreatedOnToolsVersion = 27.1;
+					};
+					C10000000000000000000406 = {
 						CreatedOnToolsVersion = 27.1;
 					};
 				};
@@ -315,6 +376,7 @@
 				C10000000000000000000106 /* StarlitMonitor */,
 				C10000000000000000000206 /* StarlitShield */,
 				C10000000000000000000306 /* StarlitShieldAction */,
+				C10000000000000000000406 /* StarlitWidgets */,
 			);
 		};
 /* End PBXProject section */
@@ -354,6 +416,11 @@
 			isa = PBXTargetDependency;
 			target = C10000000000000000000306 /* StarlitShieldAction */;
 			targetProxy = C1000000000000000000030B /* PBXContainerItemProxy */;
+		};
+		C1000000000000000000040C /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C10000000000000000000406 /* StarlitWidgets */;
+			targetProxy = C1000000000000000000040B /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -418,6 +485,7 @@
 				INFOPLIST_FILE = "Config/Starlit-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = starlit;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -450,6 +518,7 @@
 				INFOPLIST_FILE = "Config/Starlit-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = starlit;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -625,6 +694,58 @@
 			};
 			name = Release;
 		};
+		C10000000000000000000408 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Config/Widget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U479HDU7P2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Widget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = starlit;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.laith.starlit.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		C10000000000000000000409 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				APPLICATION_EXTENSION_API_ONLY = YES;
+				CODE_SIGN_ENTITLEMENTS = Config/Widget.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U479HDU7P2;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "Config/Widget-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = starlit;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 0.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.laith.starlit.widgets;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -669,6 +790,15 @@
 			buildConfigurations = (
 				C10000000000000000000308 /* Debug */,
 				C10000000000000000000309 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C10000000000000000000407 /* Build configuration list for PBXNativeTarget "StarlitWidgets" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C10000000000000000000408 /* Debug */,
+				C10000000000000000000409 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
