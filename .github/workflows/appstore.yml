@@ -1,0 +1,61 @@
+# Builds starlit on a GitHub Mac and uploads it to App Store Connect (no Mac of our own needed).
+# Run it: GitHub → Actions → "App Store build" → Run workflow.
+# Secrets (repo Settings → Secrets and variables → Actions), from App Store Connect → Users and Access → Integrations:
+#   ASC_KEY_ID      the key's Key ID
+#   ASC_ISSUER_ID   the Issuer ID above the keys table
+#   ASC_KEY_P8      the whole text of the downloaded AuthKey_XXXX.p8 file
+name: App Store build
+
+on:
+  workflow_dispatch:
+    inputs:
+      build:
+        description: Build number (must be higher than any upload so far)
+        required: true
+        default: "2"
+
+jobs:
+  build:
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use the newest Xcode on the runner
+        run: |
+          XC=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$XC"
+          xcodebuild -version
+
+      - name: App Store Connect key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey.p8"
+
+      - name: Archive
+        working-directory: ios
+        run: |
+          xcodebuild -project Starlit.xcodeproj -scheme Starlit -configuration Release \
+            -destination 'generic/platform=iOS' -archivePath "$RUNNER_TEMP/Starlit.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
+            CURRENT_PROJECT_VERSION="${{ inputs.build }}" \
+            archive
+
+      - name: Upload to App Store Connect
+        working-directory: ios
+        run: |
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Starlit.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "${{ secrets.ASC_KEY_ID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}"
+
+      - name: Remove the key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"
