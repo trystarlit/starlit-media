@@ -13,11 +13,13 @@ enum Config {
     static let supabaseAnonKey = "sb_publishable_F3TcFAf85TCMCm90Og-AeQ_lguwG4n6"
 
     /// TestFlight beta: everything is free for testers, so RevenueCat stays off.
+    /// Only in builds compiled with the BETA flag (Other Swift Flags: -D BETA). App Review also runs on a
+    /// sandbox receipt, so an App Store build must never take this path or reviewers can't see the subscription.
     static let isTestFlight: Bool = {
-        #if DEBUG
-        return false
-        #else
+        #if BETA
         return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+        #else
+        return false
         #endif
     }()
 
