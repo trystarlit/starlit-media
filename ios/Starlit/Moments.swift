@@ -111,7 +111,7 @@ struct ShieldView: View {
         .onTapGesture { Haptics.warning(); withAnimation(.linear(duration: 0.45)) { shake += 1 } }
         .onAppear {
             store.refreshRestDays()
-            if askNow { asking = true }
+            if askNow { asking = true; Analytics.track("i_need_it") }
         }
         .sheet(isPresented: $asking) {
             Group {
@@ -135,7 +135,7 @@ struct ShieldView: View {
             Text("your apps open for tonight and your streak stays safe. tonight's star stays dark.")
                 .font(Theme.font(15)).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true)
             Spacer()
-            PrimaryButton(title: "use a rest night") { asking = false; Haptics.success(); unlocked() }
+            PrimaryButton(title: "use a rest night") { asking = false; Haptics.success(); Analytics.track("rest_night_used"); unlocked() }
             Button("back to sleep") { asking = false; backToSleep() }
                 .font(Theme.font(15)).foregroundColor(Theme.muted).frame(maxWidth: .infinity).padding(10)
         }
@@ -149,7 +149,7 @@ struct ShieldView: View {
                 .font(Theme.font(15)).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true)
             Spacer()
             PrimaryButton(title: "keep my star") { asking = false; Haptics.success() }
-            Button("unlock anyway") { asking = false; unlocked() }
+            Button("unlock anyway") { asking = false; Analytics.track("unlock_anyway"); unlocked() }
                 .font(Theme.font(15)).foregroundColor(Theme.muted).frame(maxWidth: .infinity).padding(10)
         }
     }

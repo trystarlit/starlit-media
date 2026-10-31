@@ -41,6 +41,8 @@ struct OnboardingFlow: View {
             .padding(.bottom, 16)
             .transition(.asymmetric(insertion: .opacity, removal: .opacity.combined(with: .offset(y: -6))))
             .id(step)
+            .onAppear { Analytics.onboardingStep(step.rawValue, "\(step)") }
+            .onChange(of: step) { _, s in Analytics.onboardingStep(s.rawValue, "\(s)") }
 
             // progress bar + back (hidden on the full-bleed moments)
             if ![Step.splash, .wow, .commit, .paywall].contains(step) {

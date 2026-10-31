@@ -6,6 +6,8 @@ struct StarlitApp: App {
     @StateObject private var subscriptions = Subscriptions()
     private let cloud = Cloud.shared
 
+    init() { Analytics.start() }
+
     var body: some Scene {
         WindowGroup {
             RootView()

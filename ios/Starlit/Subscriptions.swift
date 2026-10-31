@@ -47,9 +47,11 @@ final class Subscriptions: ObservableObject {
     func purchase(annual wantsAnnual: Bool) async throws -> Bool {
         guard Config.hasRevenueCat else { return true }
         guard let package = wantsAnnual ? annual : monthly else { throw SubscriptionError.notLoaded }
+        Analytics.track("purchase_started", ["plan": wantsAnnual ? "yearly" : "monthly"])
         let result = try await Purchases.shared.purchase(package: package)
-        if result.userCancelled { return false }
+        if result.userCancelled { Analytics.track("purchase_cancelled"); return false }
         apply(result.customerInfo)
+        Analytics.track("purchase_done", ["plan": wantsAnnual ? "yearly" : "monthly"])
         guard isActive else { throw SubscriptionError.noAccess }
         return true
     }

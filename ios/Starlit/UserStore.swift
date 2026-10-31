@@ -120,6 +120,9 @@ final class UserStore: ObservableObject {
     /// A night was kept: one more star, streak +1.
     func keepNight() {
         nightsKept += 1; streak += 1; bestStreak = max(bestStreak, streak)
+        Analytics.track("night_kept", ["nights": nightsKept, "streak": streak])
+        let n = nightsKept
+        Task { @MainActor in Analytics.maybeAskForRating(nightsKept: n) }
     }
 
     /// Kept a night on this weekday? (0 = monday). `keptThrough` is the last kept weekday index.
