@@ -30,7 +30,14 @@ jobs:
       - name: App Store Connect key
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
+          missing=""
+          [ -z "$ASC_KEY_ID" ] && missing="$missing ASC_KEY_ID"
+          [ -z "$ASC_ISSUER_ID" ] && missing="$missing ASC_ISSUER_ID"
+          [ -z "$ASC_KEY_P8" ] && missing="$missing ASC_KEY_P8"
+          if [ -n "$missing" ]; then echo "::error::Missing repository secrets:$missing"; exit 1; fi
           mkdir -p "$RUNNER_TEMP/keys"
           printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey.p8"
 
