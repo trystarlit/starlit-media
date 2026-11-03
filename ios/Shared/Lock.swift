@@ -139,7 +139,45 @@ extension Lock {
         if nightOpen { keptPending += 1 }
         nightOpen = false
         settings.clearAllSettings()
+        // the night is over: changes that had to wait for it start now
+        if pendingBed != nil || pendingWake != nil {
+            bedMinutes = pendingBed ?? bedMinutes; wakeMinutes = pendingWake ?? wakeMinutes
+            pendingBed = nil; pendingWake = nil
+            schedule()
+        }
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    /// A bedtime/wake change waiting for tonight to end (see `request`).
+    static var pendingBed: Int? {
+        get { defaults.object(forKey: "pendingBed") as? Int }
+        set { defaults.set(newValue, forKey: "pendingBed") }
+    }
+    static var pendingWake: Int? {
+        get { defaults.object(forKey: "pendingWake") as? Int }
+        set { defaults.set(newValue, forKey: "pendingWake") }
+    }
+
+    /// From 2 hours before bedtime until wake time (or while resting), the schedule can only get stricter.
+    static func guarded(_ date: Date = Date()) -> Bool {
+        if nightOpen { return true }
+        guard hasApps, defaults.string(forKey: "scheduled") != nil else { return false }   // first setup: nothing to dodge yet
+        let calendar = Calendar.current.dateComponents([.hour, .minute], from: date)
+        let now = (calendar.hour ?? 0) * 60 + (calendar.minute ?? 0)
+        let from = (bedMinutes - 120 + 1440) % 1440
+        return from <= wakeMinutes ? (now >= from && now < wakeMinutes) : (now >= from || now < wakeMinutes)
+    }
+
+    /// Sets the schedule the app asks for. Near or during the night, a later bedtime or an earlier wake time
+    /// waits until the night ends, so the lock can't be dodged by moving it; stricter changes apply now.
+    static func request(bed: Int, wake: Int) {
+        guard guarded() else {
+            bedMinutes = bed; wakeMinutes = wake; pendingBed = nil; pendingWake = nil
+            return
+        }
+        let evening = { (m: Int) in (m - 12 * 60 + 1440) % 1440 }   // compare bedtimes from noon, so 1am is later than 11pm
+        if evening(bed) > evening(bedMinutes) { pendingBed = bed } else { bedMinutes = bed; pendingBed = nil }
+        if wake < wakeMinutes { pendingWake = wake } else { wakeMinutes = wake; pendingWake = nil }
     }
 
     /// Unlocked tonight: the apps open until next bedtime and tonight's star stays dark.
@@ -178,8 +216,10 @@ extension Lock {
     static func schedule() {
         let center = DeviceActivityCenter()
         guard hasApps else {
+            guard !nightOpen else { return }   // emptying the app list mid-night doesn't unlock tonight
             center.stopMonitoring([bedtime, morning])
             settings.clearAllSettings()
+            defaults.removeObject(forKey: "scheduled")
             return
         }
         let s = DeviceActivitySchedule(intervalStart: DateComponents(hour: bedMinutes / 60, minute: bedMinutes % 60),

@@ -60,15 +60,17 @@ struct TimeSheet: View {
     @Binding var value: Int
     @Environment(\.dismiss) private var dismiss
     @State private var draft: Int
+    var note: String?
 
-    init(title: String, values: [Int], value: Binding<Int>) {
-        self.title = title; self.values = values; self._value = value
+    init(title: String, values: [Int], value: Binding<Int>, note: String? = nil) {
+        self.title = title; self.values = values; self._value = value; self.note = note
         self._draft = State(initialValue: value.wrappedValue)
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(title).font(Theme.font(24)).foregroundColor(Theme.ivory).padding(.top, 26)
+            if let note { Text(note).font(Theme.font(14)).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true) }
             WheelPicker(values: values, selection: $draft)
             PrimaryButton(title: "done") { value = draft; Haptics.success(); dismiss() }
         }

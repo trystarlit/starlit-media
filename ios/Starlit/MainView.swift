@@ -276,8 +276,8 @@ struct TonightTab: View {
         }
         .sheet(item: $sheet) { k in
             switch k {
-            case .bed: TimeSheet(title: "bedtime", values: .bedtimes, value: $store.wantMinutes)
-            case .wake: TimeSheet(title: "wake up", values: .wakeTimes, value: $store.wakeMinutes)
+            case .bed: TimeSheet(title: "bedtime", values: .bedtimes, value: $store.wantMinutes, note: Lock.guarded() ? "it's close to bedtime, so a later bedtime starts tomorrow night. earlier works right away." : nil)
+            case .wake: TimeSheet(title: "wake up", values: .wakeTimes, value: $store.wakeMinutes, note: Lock.guarded() ? "your night is close, so an earlier wake up starts tomorrow." : nil)
             case .apps: AppsSheet().environmentObject(store)
             }
         }
@@ -528,8 +528,8 @@ struct YouTab: View {
         }
         .sheet(item: $sheet) { k in
             switch k {
-            case .bed: TimeSheet(title: "bedtime", values: .bedtimes, value: $store.wantMinutes)
-            case .wake: TimeSheet(title: "wake up", values: .wakeTimes, value: $store.wakeMinutes)
+            case .bed: TimeSheet(title: "bedtime", values: .bedtimes, value: $store.wantMinutes, note: Lock.guarded() ? "it's close to bedtime, so a later bedtime starts tomorrow night. earlier works right away." : nil)
+            case .wake: TimeSheet(title: "wake up", values: .wakeTimes, value: $store.wakeMinutes, note: Lock.guarded() ? "your night is close, so an earlier wake up starts tomorrow." : nil)
             case .apps: AppsSheet().environmentObject(store)
             }
         }

@@ -75,8 +75,7 @@ final class UserStore: ObservableObject {
     /// Hands bedtime, wake time and the apps to the lock and re-registers tonight's schedule.
     func syncLock() {
         screenTimeOK = AuthorizationCenter.shared.authorizationStatus == .approved
-        Lock.bedMinutes = ((wantMinutes % 1440) + 1440) % 1440
-        Lock.wakeMinutes = ((wakeMinutes % 1440) + 1440) % 1440
+        Lock.request(bed: ((wantMinutes % 1440) + 1440) % 1440, wake: ((wakeMinutes % 1440) + 1440) % 1440)
         Lock.streak = streak
         Lock.nightsKept = nightsKept
         if screenTimeOK { Lock.schedule() }
