@@ -53,6 +53,35 @@ jobs:
             CURRENT_PROJECT_VERSION="${{ inputs.build }}" \
             archive
 
+      # Export locally first and check the App Store signature: the app and the 3 Screen Time extensions must carry
+      # com.apple.developer.family-controls, and the widget must not link the Screen Time frameworks (Guideline 2.5.1).
+      - name: Check Family Controls entitlements
+        working-directory: ios
+        run: |
+          cp ExportOptions.plist "$RUNNER_TEMP/ExportLocal.plist"
+          plutil -replace destination -string export "$RUNNER_TEMP/ExportLocal.plist"
+          xcodebuild -exportArchive -archivePath "$RUNNER_TEMP/Starlit.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportLocal.plist" -exportPath "$RUNNER_TEMP/local" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey.p8" \
+            -authenticationKeyID "${{ secrets.ASCKEYID }}" \
+            -authenticationKeyIssuerID "${{ secrets.ASCISSUERID }}"
+          cd "$RUNNER_TEMP/local" && unzip -q *.ipa
+          fail=0
+          for b in Payload/Starlit.app Payload/Starlit.app/PlugIns/*.appex; do
+            name=$(basename "$b")
+            ents=$(codesign -d --entitlements - --xml "$b" 2>/dev/null | plutil -convert xml1 -o - - 2>/dev/null)
+            fc=$(echo "$ents" | grep -c "com.apple.developer.family-controls" || true)
+            exe="$b/$(/usr/libexec/PlistBuddy -c 'Print CFBundleExecutable' "$b/Info.plist")"
+            links=$(otool -L "$exe" | grep -cE "FamilyControls|ManagedSettings|DeviceActivity" || true)
+            echo "$name: family-controls entitlement=$fc, links Screen Time frameworks=$links"
+            if [ "$links" -gt 0 ] && [ "$fc" -eq 0 ]; then echo "::error::$name links Screen Time but has no family-controls entitlement"; fail=1; fi
+            case "$name" in Starlit.app|StarlitMonitor.appex|StarlitShield.appex|StarlitShieldAction.appex)
+              if [ "$fc" -eq 0 ]; then echo "::error::$name is missing com.apple.developer.family-controls"; fail=1; fi ;;
+            esac
+          done
+          exit $fail
+
       - name: Upload to App Store Connect
         working-directory: ios
         run: |

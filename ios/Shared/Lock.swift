@@ -1,29 +1,16 @@
 import Foundation
+#if !WIDGET
 import FamilyControls
 import ManagedSettings
 import DeviceActivity
+#endif
 import WidgetKit
 
 /// The Screen Time lock, shared by the app and its extensions through the app group.
 /// The monitor extension calls `startNight` at bedtime and `endNight` at wake time.
+/// The widget (no Family Controls entitlement) builds with WIDGET set and only sees the plain schedule/streak part.
 enum Lock {
     static let defaults = UserDefaults(suiteName: "group.com.laith.starlit") ?? .standard
-    static let bedtime = DeviceActivityName("bedtime")
-    static let settings = ManagedSettingsStore(named: ManagedSettingsStore.Name("starlit"))
-
-    static var selection: FamilyActivitySelection {
-        get {
-            guard let data = defaults.data(forKey: "selection"),
-                  let s = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else { return FamilyActivitySelection() }
-            return s
-        }
-        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "selection") }
-    }
-
-    static var hasApps: Bool {
-        let s = selection
-        return !s.applicationTokens.isEmpty || !s.categoryTokens.isEmpty || !s.webDomainTokens.isEmpty
-    }
 
     /// Minutes after midnight, 0..<1440.
     static var bedMinutes: Int {
@@ -54,6 +41,72 @@ enum Lock {
     private static var brokenNight: String? {
         get { defaults.string(forKey: "brokenNight") }
         set { defaults.set(newValue, forKey: "brokenNight") }
+    }
+
+    // For the widgets: the app publishes these whenever they change.
+    static var streak: Int {
+        get { defaults.integer(forKey: "streak") }
+        set { defaults.set(newValue, forKey: "streak") }
+    }
+    static var nightsKept: Int {
+        get { defaults.integer(forKey: "nightsKept") }
+        set { defaults.set(newValue, forKey: "nightsKept") }
+    }
+
+    /// Tonight's bedtime and the wake time after it. While resting, it's the night already under way.
+    static func night(around date: Date = Date()) -> (bed: Date, wake: Date) {
+        let start = Calendar.current.startOfDay(for: date)
+        var bed = start.addingTimeInterval(TimeInterval(bedMinutes * 60))
+        if isBedtime(date) {
+            if bed > date { bed.addTimeInterval(-86_400) }   // after midnight: it started yesterday
+        } else if bed <= date {
+            bed.addTimeInterval(86_400)
+        }
+        var wake = Calendar.current.startOfDay(for: bed).addingTimeInterval(TimeInterval(wakeMinutes * 60))
+        if wake <= bed { wake.addTimeInterval(86_400) }
+        return (bed, wake)
+    }
+
+    static func isBedtime(_ date: Date = Date()) -> Bool {
+        let now = minutes(date)
+        return bedMinutes <= wakeMinutes ? (now >= bedMinutes && now < wakeMinutes) : (now >= bedMinutes || now < wakeMinutes)
+    }
+
+    /// The evening a night belongs to: before wake time it's still last night.
+    static func nightID(_ date: Date = Date()) -> String {
+        let evening = minutes(date) < wakeMinutes ? date.addingTimeInterval(-86_400) : date
+        let c = Calendar.current.dateComponents([.year, .month, .day], from: evening)
+        return "\(c.year ?? 0)-\(c.month ?? 0)-\(c.day ?? 0)"
+    }
+
+    static func clock(_ minutes: Int) -> String {
+        let h = minutes / 60 % 24, m = minutes % 60
+        return String(format: "%d:%02d", h % 12 == 0 ? 12 : h % 12, m)
+    }
+
+    private static func minutes(_ date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
+    }
+}
+
+#if !WIDGET
+extension Lock {
+    static let bedtime = DeviceActivityName("bedtime")
+    static let settings = ManagedSettingsStore(named: ManagedSettingsStore.Name("starlit"))
+
+    static var selection: FamilyActivitySelection {
+        get {
+            guard let data = defaults.data(forKey: "selection"),
+                  let s = try? JSONDecoder().decode(FamilyActivitySelection.self, from: data) else { return FamilyActivitySelection() }
+            return s
+        }
+        set { defaults.set(try? JSONEncoder().encode(newValue), forKey: "selection") }
+    }
+
+    static var hasApps: Bool {
+        let s = selection
+        return !s.applicationTokens.isEmpty || !s.categoryTokens.isEmpty || !s.webDomainTokens.isEmpty
     }
 
     static func startNight() {
@@ -125,50 +178,5 @@ enum Lock {
         }
         if isBedtime() { startNight() }
     }
-
-    // For the widgets: the app publishes these whenever they change.
-    static var streak: Int {
-        get { defaults.integer(forKey: "streak") }
-        set { defaults.set(newValue, forKey: "streak") }
-    }
-    static var nightsKept: Int {
-        get { defaults.integer(forKey: "nightsKept") }
-        set { defaults.set(newValue, forKey: "nightsKept") }
-    }
-
-    /// Tonight's bedtime and the wake time after it. While resting, it's the night already under way.
-    static func night(around date: Date = Date()) -> (bed: Date, wake: Date) {
-        let start = Calendar.current.startOfDay(for: date)
-        var bed = start.addingTimeInterval(TimeInterval(bedMinutes * 60))
-        if isBedtime(date) {
-            if bed > date { bed.addTimeInterval(-86_400) }   // after midnight: it started yesterday
-        } else if bed <= date {
-            bed.addTimeInterval(86_400)
-        }
-        var wake = Calendar.current.startOfDay(for: bed).addingTimeInterval(TimeInterval(wakeMinutes * 60))
-        if wake <= bed { wake.addTimeInterval(86_400) }
-        return (bed, wake)
-    }
-
-    static func isBedtime(_ date: Date = Date()) -> Bool {
-        let now = minutes(date)
-        return bedMinutes <= wakeMinutes ? (now >= bedMinutes && now < wakeMinutes) : (now >= bedMinutes || now < wakeMinutes)
-    }
-
-    /// The evening a night belongs to: before wake time it's still last night.
-    static func nightID(_ date: Date = Date()) -> String {
-        let evening = minutes(date) < wakeMinutes ? date.addingTimeInterval(-86_400) : date
-        let c = Calendar.current.dateComponents([.year, .month, .day], from: evening)
-        return "\(c.year ?? 0)-\(c.month ?? 0)-\(c.day ?? 0)"
-    }
-
-    static func clock(_ minutes: Int) -> String {
-        let h = minutes / 60 % 24, m = minutes % 60
-        return String(format: "%d:%02d", h % 12 == 0 ? 12 : h % 12, m)
-    }
-
-    private static func minutes(_ date: Date) -> Int {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
-    }
 }
+#endif
