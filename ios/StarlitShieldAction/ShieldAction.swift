@@ -17,6 +17,11 @@ class ShieldActionHandler: ShieldActionDelegate {
     }
 
     private func respond(_ action: ManagedSettings.ShieldAction, _ done: @escaping (ShieldActionResponse) -> Void) {
+        // past wake time and still locked (iOS missed the end of the night): the button unlocks, the night counts
+        if Lock.nightOpen, Lock.nightIsOver() {
+            Lock.endNight()
+            return done(.defer)
+        }
         guard action == .secondaryButtonPressed else { return done(.close) }
         Lock.askUnlock = true
         let content = UNMutableNotificationContent()

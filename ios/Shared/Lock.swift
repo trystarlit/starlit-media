@@ -67,6 +67,18 @@ enum Lock {
         return (bed, wake)
     }
 
+    /// When tonight's lock should end (the wake time after the bedtime it started for), set by `startNight`.
+    static var lockUntil: Date? {
+        get { let t = defaults.double(forKey: "lockUntil"); return t > 0 ? Date(timeIntervalSince1970: t) : nil }
+        set { defaults.set(newValue?.timeIntervalSince1970 ?? 0, forKey: "lockUntil") }
+    }
+
+    /// The locked night has reached its wake time. `slack` lets an early wake-time callback through.
+    static func nightIsOver(slack: TimeInterval = 0, now: Date = Date()) -> Bool {
+        guard let until = lockUntil else { return !isBedtime(now) }   // locked before lockUntil existed
+        return now >= until.addingTimeInterval(-slack)
+    }
+
     static func isBedtime(_ date: Date = Date()) -> Bool {
         let now = minutes(date)
         return bedMinutes <= wakeMinutes ? (now >= bedMinutes && now < wakeMinutes) : (now >= bedMinutes || now < wakeMinutes)
@@ -93,6 +105,8 @@ enum Lock {
 #if !WIDGET
 extension Lock {
     static let bedtime = DeviceActivityName("bedtime")
+    /// A short interval starting at wake time: a second chance to unlock if iOS skips or rushes the bedtime end.
+    static let morning = DeviceActivityName("morning")
     static let settings = ManagedSettingsStore(named: ManagedSettingsStore.Name("starlit"))
 
     static var selection: FamilyActivitySelection {
@@ -113,14 +127,15 @@ extension Lock {
         guard hasApps, brokenNight != nightID() else { return }
         if !nightOpen { askUnlock = false }   // a new night starts with the plain shield
         nightOpen = true
+        lockUntil = night().wake
         shield()
         WidgetCenter.shared.reloadAllTimelines()
     }
 
     static func endNight() {
-        // re-registering the schedule (e.g. after an app update) can end the interval mid-night;
-        // only a real end at wake time counts, otherwise the night goes on locked
-        guard !isBedtime() else { return }
+        // re-registering the schedule (e.g. after an app update) can end the interval mid-night, so only an end
+        // at wake time counts; iOS can call this a little before wake time, so a few minutes early is fine
+        guard nightIsOver(slack: 5 * 60) else { return }
         if nightOpen { keptPending += 1 }
         nightOpen = false
         settings.clearAllSettings()
@@ -163,7 +178,7 @@ extension Lock {
     static func schedule() {
         let center = DeviceActivityCenter()
         guard hasApps else {
-            center.stopMonitoring([bedtime])
+            center.stopMonitoring([bedtime, morning])
             settings.clearAllSettings()
             return
         }
@@ -172,10 +187,17 @@ extension Lock {
                                        repeats: true)
         // re-registering mid-night can end the interval (and credit a fake kept night), so only when times change
         let key = "\(bedMinutes)-\(wakeMinutes)"
-        if defaults.string(forKey: "scheduled") != key || !center.activities.contains(bedtime) {
+        let wakeEnd = (wakeMinutes + 20) % 1440   // iOS needs at least 15 minutes
+        let m = DeviceActivitySchedule(intervalStart: DateComponents(hour: wakeMinutes / 60, minute: wakeMinutes % 60),
+                                       intervalEnd: DateComponents(hour: wakeEnd / 60, minute: wakeEnd % 60),
+                                       repeats: true)
+        if defaults.string(forKey: "scheduled") != key || !center.activities.contains(bedtime) || !center.activities.contains(morning) {
             try? center.startMonitoring(bedtime, during: s)
+            try? center.startMonitoring(morning, during: m)
             defaults.set(key, forKey: "scheduled")
         }
+        // a night whose wake time passed without iOS ending it: unlock now (the night still counts)
+        if nightOpen, nightIsOver() { endNight() }
         if isBedtime() { startNight() }
     }
 }

@@ -18,6 +18,17 @@ class ShieldConfig: ShieldConfigurationDataSource {
         let button = UIColor(red: 150/255, green: 104/255, blue: 45/255, alpha: 1)
         let icon = UIImage(systemName: "moon.stars.fill", withConfiguration: UIImage.SymbolConfiguration(pointSize: 44))?
             .withTintColor(amber, renderingMode: .alwaysOriginal)
+        if Lock.nightOpen, Lock.nightIsOver() {   // wake time passed but iOS hasn't lifted the shield yet
+            return ShieldConfiguration(
+                backgroundBlurStyle: nil,
+                backgroundColor: night,
+                icon: icon,
+                title: .init(text: "good morning", color: ivory),
+                subtitle: .init(text: "you kept your night. tap to unlock your apps.", color: muted),
+                primaryButtonLabel: .init(text: "unlock my apps", color: ivory),
+                primaryButtonBackgroundColor: button
+            )
+        }
         let asked = Lock.askUnlock
         return ShieldConfiguration(
             backgroundBlurStyle: nil,
