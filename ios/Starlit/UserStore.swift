@@ -9,8 +9,16 @@ final class UserStore: ObservableObject {
     @Published var onboarded: Bool { didSet { d.set(onboarded, forKey: "onboarded") } }
     @Published var name: String { didSet { d.set(name, forKey: "name") } }
     @Published var goals: Set<Goal> { didSet { d.set(goals.map(\.rawValue), forKey: "goals") } }
-    /// Bedtime they want, minutes after midnight of the evening (23:00 = 1380). Values past 1440 mean after midnight.
+    /// When the phone rests (the lock starts), minutes after midnight of the evening (23:00 = 1380). Values past 1440 mean after midnight.
     @Published var wantMinutes: Int { didSet { d.set(wantMinutes, forKey: "wantMinutes") } }
+    /// When they want to be asleep (onboarding). The lock starts `windDown` minutes before it.
+    @Published var sleepMinutes: Int { didSet { d.set(sleepMinutes, forKey: "sleepMinutes") } }
+    /// Minutes before sleep that the phone goes down: 0, 30 or 60.
+    @Published var windDown: Int { didSet { d.set(windDown, forKey: "windDown") } }
+    /// Rest nights added each week: 2 (go easy), 1 (normal) or 0 (no excuses).
+    @Published var restPerWeek: Int { didSet { d.set(restPerWeek, forKey: "restPerWeek") } }
+    /// "Start slow": the lock moves 30 minutes earlier each week until it reaches this time. 0 = off.
+    @Published var paceTarget: Int { didSet { d.set(paceTarget, forKey: "paceTarget") } }
     /// What actually happens (1:30am = 1530).
     @Published var actualMinutes: Int { didSet { d.set(actualMinutes, forKey: "actualMinutes") } }
     @Published var wakeMinutes: Int { didSet { d.set(wakeMinutes, forKey: "wakeMinutes") } }
@@ -39,6 +47,10 @@ final class UserStore: ObservableObject {
         name = d.string(forKey: "name") ?? ""
         goals = Set((d.stringArray(forKey: "goals") ?? []).compactMap(Goal.init(rawValue:)))
         wantMinutes = d.object(forKey: "wantMinutes") as? Int ?? 23 * 60
+        sleepMinutes = d.object(forKey: "sleepMinutes") as? Int ?? d.object(forKey: "wantMinutes") as? Int ?? 23 * 60
+        windDown = d.object(forKey: "windDown") as? Int ?? 0
+        restPerWeek = d.object(forKey: "restPerWeek") as? Int ?? 1
+        paceTarget = d.integer(forKey: "paceTarget")
         actualMinutes = d.object(forKey: "actualMinutes") as? Int ?? 25 * 60 + 30
         wakeMinutes = d.object(forKey: "wakeMinutes") as? Int ?? 7 * 60
         mornings = d.string(forKey: "mornings") ?? ""
@@ -77,11 +89,17 @@ final class UserStore: ObservableObject {
         return (c.yearForWeekOfYear ?? 0) * 100 + (c.weekOfYear ?? 0)
     }
 
-    /// New week: one more rest day (they stack up to the max).
+    /// New week: more rest days (they stack up to the max), and a "start slow" bedtime moves 30 minutes earlier.
     func refreshRestDays() {
         let w = UserStore.currentWeek
         guard restWeek != w else { return }
-        if restWeek != 0 { restDaysLeft = min(UserStore.maxRestDays, restDaysLeft + 1) }
+        if restWeek != 0 {
+            restDaysLeft = min(UserStore.maxRestDays, restDaysLeft + restPerWeek)
+            if paceTarget > 0 {
+                wantMinutes = max(paceTarget, wantMinutes - 30)
+                if wantMinutes == paceTarget { paceTarget = 0 }
+            }
+        }
         restWeek = w
         restedDays = []
     }
@@ -110,11 +128,27 @@ final class UserStore: ObservableObject {
     var displayName: String { name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() }
 
     /// Hours lost per night between the bedtime they want and the one that happens.
-    var hoursLost: Double { max(0.5, Double(actualMinutes - wantMinutes) / 60.0) }
+    var hoursLost: Double { max(0.5, Double(actualMinutes - sleepMinutes) / 60.0) }
+
+    /// Where the lock ends up: `windDown` before the sleep time they want.
+    var planTarget: Int { max(18 * 60, sleepMinutes - windDown) }
+    /// "Start slow" begins a little before when they really fall asleep now.
+    var paceStart: Int { min(27 * 60, max(planTarget, (actualMinutes - windDown - 30) / 15 * 15)) }
+    /// Worth offering "start slow": the gap is at least an hour.
+    var paceMakesSense: Bool { paceStart - planTarget >= 60 }
+
+    /// Turns the onboarding answers into the lock schedule and rest-night rules.
+    func applyPlan(slow: Bool) {
+        if slow && paceMakesSense { wantMinutes = paceStart; paceTarget = planTarget } else { wantMinutes = planTarget; paceTarget = 0 }
+        restDaysLeft = restPerWeek
+        Analytics.track("plan_set", ["wind_down": windDown, "rest_per_week": restPerWeek, "slow": paceTarget > 0,
+                                     "lock": wantMinutes, "wake": wakeMinutes])
+    }
     var daysPerYear: Int { Int((hoursLost * 365 / 24).rounded()) }
 
     func reset() {
         onboarded = false; name = ""; goals = []; mornings = ""; keepsUp = []; nightsKept = 0; streak = 0; bestStreak = 0; restDaysLeft = 1; restedDays = []; touredApp = false
+        windDown = 0; restPerWeek = 1; paceTarget = 0
     }
 
     /// A night was kept: one more star, streak +1.
@@ -160,6 +194,16 @@ enum DayState { case kept, rested, missed, today, future }
 enum Goal: String, CaseIterable, Identifiable {
     case rested, scrolling, energy, focus, together
     var id: String { rawValue }
+
+    var emoji: String {
+        switch self {
+        case .rested: return "😴"
+        case .scrolling: return "📵"
+        case .energy: return "⚡️"
+        case .focus: return "🧠"
+        case .together: return "✨"
+        }
+    }
 
     var label: String {
         switch self {

@@ -5,9 +5,10 @@ import SwiftUI
 struct OnboardingFlow: View {
     @EnvironmentObject var store: UserStore
     @State private var step = Step.splash
+    @State private var paceChoice = 1
 
     enum Step: Int, CaseIterable {
-        case splash, name, goals, want, actual, mirror, mornings, keepsUp, how, wow, commit, paywall
+        case splash, name, goals, want, actual, mirror, wake, mornings, keepsUp, windDown, strict, pace, how, plan, wow, commit, paywall
     }
 
     var body: some View {
@@ -18,19 +19,45 @@ struct OnboardingFlow: View {
                 case .splash: SplashStep(next: go(.name))
                 case .name: NameStep(next: go(.goals))
                 case .goals: GoalsStep(next: go(.want))
-                case .want: TimeStep(title: ("what time do you ", "want", " to sleep?"), sub: "scroll to pick. you can change it anytime.",
+                case .want: TimeStep(title: ("what time do you ", "want", " to be asleep? 😴"), sub: "scroll to pick. you can change it anytime.",
                                      options: .bedtimes,
-                                     value: $store.wantMinutes, next: go(.actual))
-                case .actual: TimeStep(title: ("and what time does it ", "actually", " happen?"), sub: "be honest. nobody's judging.",
-                                       options: .times(max(18 * 60 + 30, store.wantMinutes), 29 * 60),   // up to 5:00am
+                                     value: $store.sleepMinutes, next: go(.actual))
+                case .actual: TimeStep(title: ("and what time does it ", "actually", " happen? 👀"), sub: "be honest. nobody's judging.",
+                                       options: .times(max(18 * 60 + 30, store.sleepMinutes), 29 * 60),   // up to 5:00am
                                        value: $store.actualMinutes, next: go(.mirror))
-                case .mirror: MirrorStep(next: go(.mornings))
+                case .mirror: MirrorStep(next: go(.wake))
+                case .wake: TimeStep(title: ("what time do you need to ", "wake up", "? ⏰"), sub: "your apps open again at this time.",
+                                     options: .times(4 * 60 + 30, 11 * 60),
+                                     value: $store.wakeMinutes, next: go(.mornings))
                 case .mornings: SingleChoiceStep(title: ("how do your ", "mornings", " feel right now?"),
                                                  options: ["wrecked", "tired", "okay", "great"],
-                                                 icons: ["battery.0percent", "battery.25percent", "battery.75percent", "battery.100percent"],
+                                                 emojis: ["🧟", "🥱", "🙂", "☀️"],
                                                  value: $store.mornings, next: go(.keepsUp))
-                case .keepsUp: KeepsUpStep(next: go(.how))
-                case .how: HowItWorksStep(next: go(.wow))
+                case .keepsUp: KeepsUpStep(next: go(.windDown))
+                case .windDown:
+                    ChoiceStep(title: ("when should your phone go ", "down", "?"), sub: "that's when your apps lock.",
+                               options: [("at bedtime · \(UserStore.clock(store.sleepMinutes))", "🛏️", 0),
+                                         ("30 min before · \(UserStore.clock(store.sleepMinutes - 30))", "📖", 30),
+                                         ("1 hour before · \(UserStore.clock(store.sleepMinutes - 60))", "🕯️", 60)],
+                               value: $store.windDown, next: { _ in go(.strict)() })
+                case .strict:
+                    ChoiceStep(title: ("how ", "strict", " should starlit be?"),
+                               sub: "a rest night lets you skip a night without losing your streak.",
+                               options: [("go easy · 2 rest nights a week", "🌙", 2),
+                                         ("normal · 1 rest night a week", "⭐️", 1),
+                                         ("no excuses · no rest nights", "🔒", 0)],
+                               value: $store.restPerWeek,
+                               next: { _ in
+                                   if store.paceMakesSense { go(.pace)() } else { store.applyPlan(slow: false); go(.how)() }
+                               })
+                case .pace:
+                    ChoiceStep(title: ("start slow or go ", "all in", "?"),
+                               sub: "slow: \(UserStore.clock(store.paceStart)) tonight, 30 min earlier each week until \(UserStore.clock(store.planTarget)). all in: \(UserStore.clock(store.planTarget)) from tonight.",
+                               options: [("start slow", "🐢", 1), ("all in", "🔥", 0)],
+                               value: $paceChoice,
+                               next: { v in store.applyPlan(slow: v == 1); go(.how)() })
+                case .how: HowItWorksStep(next: go(.plan))
+                case .plan: PlanStep(next: go(.wow))
                 case .wow: WowStep(next: go(.commit))
                 case .commit: CommitStep(next: go(.paywall))
                 case .paywall: PaywallStep(finish: { store.onboarded = true })
@@ -71,7 +98,8 @@ struct OnboardingFlow: View {
     }
 
     private func back() {
-        guard let prev = Step(rawValue: step.rawValue - 1) else { return }
+        guard var prev = Step(rawValue: step.rawValue - 1) else { return }
+        if prev == .pace && !store.paceMakesSense { prev = .strict }   // pace was skipped
         Haptics.tap()
         withAnimation(.easeOut(duration: 0.3)) { step = prev }
     }
@@ -102,7 +130,7 @@ struct NameStep: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             Spacer().frame(height: 60)
-            Headline("first, what should we ", amber: "call", " you?").rise(0)
+            Headline("first, what should we ", amber: "call", " you? 👋").rise(0)
             TextField("", text: $store.name, prompt: Text("your name").foregroundColor(Theme.muted))
                 .font(Theme.font(28))
                 .foregroundColor(Theme.ivory)
@@ -115,6 +143,8 @@ struct NameStep: View {
                 .overlay(alignment: .bottom) { Rectangle().fill(Theme.line).frame(height: 1) }
             Spacer()
             PrimaryButton(title: "continue", enabled: !store.displayName.isEmpty, action: next)
+            Button("skip") { Haptics.tap(); next() }
+                .font(Theme.font(15)).foregroundColor(Theme.muted).frame(maxWidth: .infinity)
         }
         .onAppear { focused = true }
     }
@@ -129,12 +159,12 @@ struct GoalsStep: View {
             Headline("what do you want from your ", amber: "nights", ", \(store.displayNameOrYou)?", size: 34).rise(0)
             Text("pick all that fit").font(Theme.font(15)).foregroundColor(Theme.muted).padding(.bottom, 8).rise(1)
             ForEach(Array(Goal.allCases.enumerated()), id: \.element) { i, g in
-                OptionCard(title: g.label, selected: store.goals.contains(g), tick: true) {
+                OptionCard(title: "\(g.emoji)  \(g.label)", selected: store.goals.contains(g), tick: true) {
                     if store.goals.contains(g) { store.goals.remove(g) } else { store.goals.insert(g) }
                 }
                 .rise(i + 2)
             }
-            OptionCard(title: "all of the above", selected: store.goals.count == Goal.allCases.count, tick: true) {
+            OptionCard(title: "💯  all of the above", selected: store.goals.count == Goal.allCases.count, tick: true) {
                 store.goals = store.goals.count == Goal.allCases.count ? [] : Set(Goal.allCases)
             }
             .rise(7)
@@ -167,7 +197,7 @@ struct TimeStep: View {
 struct SingleChoiceStep: View {
     var title: (String, String, String)
     var options: [String]
-    var icons: [String] = []   // SF Symbols, one per option
+    var emojis: [String] = []   // one per option
     @Binding var value: String
     var next: () -> Void
     var body: some View {
@@ -175,7 +205,7 @@ struct SingleChoiceStep: View {
             Spacer()
             Headline(title.0, amber: title.1, title.2, size: 34).padding(.bottom, 16).rise(0)
             ForEach(Array(options.enumerated()), id: \.element) { i, o in
-                OptionCard(title: o, selected: value == o, icon: icons.indices.contains(i) ? icons[i] : nil) {
+                OptionCard(title: emojis.indices.contains(i) ? "\(emojis[i])  \(o)" : o, selected: value == o) {
                     value = o
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.38) { next() }
                 }
@@ -210,33 +240,103 @@ struct MirrorStep: View {
     }
 }
 
+/// One tap picks and moves on (the multiple-choice steps that change the plan).
+struct ChoiceStep: View {
+    var title: (String, String, String)
+    var sub: String? = nil
+    var options: [(label: String, emoji: String, value: Int)]
+    @Binding var value: Int
+    var next: (Int) -> Void
+    @State private var picked: Int?
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Spacer()
+            Headline(title.0, amber: title.1, title.2, size: 34).rise(0)
+            if let sub {
+                Text(sub).font(Theme.font(15)).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true).rise(1)
+            }
+            Spacer().frame(height: 8)
+            ForEach(Array(options.enumerated()), id: \.offset) { i, o in
+                OptionCard(title: "\(o.emoji)  \(o.label)", selected: picked == o.value) {
+                    guard picked == nil else { return }
+                    picked = o.value
+                    value = o.value
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.38) { next(o.value) }
+                }
+                .rise(i + 2)
+            }
+            Spacer().frame(height: 60)
+        }
+    }
+}
+
+/// Their answers, shown back as one plan before the wow moment.
+struct PlanStep: View {
+    @EnvironmentObject var store: UserStore
+    var next: () -> Void
+    @State private var visible = 0
+
+    private var rows: [(String, String, String)] {
+        let apps = store.keepsUp.sorted().prefix(3).joined(separator: ", ")
+        let down = store.paceTarget > 0
+            ? "\(UserStore.clock(store.wantMinutes)) tonight, then 30 min earlier each week to \(UserStore.clock(store.paceTarget))"
+            : "\(UserStore.clock(store.wantMinutes))\(UserStore.ampm(store.wantMinutes)), every night"
+        return [
+            ("🌙", "phone down", down),
+            ("⏰", "apps open again", "\(UserStore.clock(store.wakeMinutes))\(UserStore.ampm(store.wakeMinutes)), every morning"),
+            ("📵", "resting", apps.isEmpty ? "the apps that keep you up" : apps),
+            ("🛟", "rest nights", store.restPerWeek == 0 ? "none. no excuses." : "\(store.restPerWeek) a week, so one off night won't break your streak"),
+            ("✨", "the payoff", "about \(store.daysPerYear) days back this year"),
+        ]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Spacer().frame(height: 50)
+            Headline(store.displayName.isEmpty ? "your " : "\(store.displayName)'s ", amber: "plan", " is ready.", size: 34).rise(0)
+            Text("built from your answers. you can change it anytime.").font(Theme.font(15)).foregroundColor(Theme.muted).rise(1)
+            Spacer()
+            ForEach(Array(rows.enumerated()), id: \.offset) { i, r in
+                HStack(spacing: 14) {
+                    Text(r.0).font(.system(size: 22)).frame(width: 40, height: 40)
+                        .background(RoundedRectangle(cornerRadius: 12).fill(Theme.card2))
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(r.1).font(Theme.font(15, .medium)).foregroundColor(Theme.ivory)
+                        Text(r.2).font(Theme.font(13)).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(12).card(18)
+                .opacity(visible > i ? 1 : 0)
+                .offset(y: visible > i ? 0 : 10)
+            }
+            Spacer()
+            PrimaryButton(title: "this is my plan", action: next)
+        }
+        .onAppear {
+            for i in 0..<5 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3 + Double(i) * 0.28) {
+                    Haptics.tap()
+                    withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) { visible = i + 1 }
+                }
+            }
+        }
+    }
+}
+
 struct KeepsUpStep: View {
     @EnvironmentObject var store: UserStore
     var next: () -> Void
-    // Stand-in list. On a real phone this becomes Apple's FamilyActivityPicker once Family Controls is approved.
+    // What keeps them up, in words. The real apps get picked in Apple's picker after the paywall (the tour).
     static let apps = ["tiktok", "instagram", "youtube", "snapchat", "texting", "games", "netflix", "x"]
-    /// Stand-in symbols; Apple's picker shows the real app icons.
-    static func icon(_ app: String) -> String {
-        switch app {
-        case "tiktok": return "music.note"
-        case "instagram": return "camera"
-        case "youtube": return "play.rectangle.fill"
-        case "snapchat": return "bubble.left.and.text.bubble.right"
-        case "texting": return "message.fill"
-        case "games": return "gamecontroller.fill"
-        case "netflix": return "tv.fill"
-        case "x": return "xmark"
-        default: return "app"
-        }
-    }
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Spacer().frame(height: 50)
-            Headline("what ", amber: "keeps", " you up?")
+            Headline("what ", amber: "keeps", " you up? 📱")
             Text("we'll rest these at bedtime").font(Theme.font(15)).foregroundColor(Theme.muted).padding(.bottom, 8)
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
                 ForEach(Self.apps, id: \.self) { a in
-                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true, leading: KeepsUpStep.icon(a)) {
+                    OptionCard(title: a, selected: store.keepsUp.contains(a), tick: true) {
                         if store.keepsUp.contains(a) { store.keepsUp.remove(a) } else { store.keepsUp.insert(a) }
                     }
                 }

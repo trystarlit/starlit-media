@@ -113,7 +113,8 @@ private struct TourAppsStep: View {
         VStack(alignment: .leading, spacing: 12) {
             Spacer().frame(height: 50)
             Headline("these rest at ", amber: UserStore.clock(store.wantMinutes), ".").rise(0)
-            Text(store.screenTimeOK ? "pick the apps that keep you up. you can change them anytime."
+            Text(store.screenTimeOK ? (store.keepsUp.isEmpty ? "pick the apps that keep you up. you can change them anytime."
+                                       : "you said \(store.keepsUp.sorted().prefix(3).joined(separator: ", ")) keep you up. pick those 👇")
                                     : "tap to change. you can edit this anytime.")
                 .font(Theme.font(15)).foregroundColor(Theme.muted).padding(.bottom, 8).rise(1)
             ScrollView(showsIndicators: false) { RestingAppsPicker() }.rise(2)

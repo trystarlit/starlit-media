@@ -291,7 +291,8 @@ struct StreakView: View {
             }
             HStack(spacing: 10) {
                 RestNightsSaved()
-                Text(store.restDaysLeft == 0 ? "no rest nights saved · you get one every monday"
+                Text(store.restDaysLeft == 0 ? (store.restPerWeek == 0 ? "no rest nights · you picked no excuses"
+                                                          : "no rest nights saved · you get \(store.restPerWeek == 1 ? "one" : "two") every monday")
                      : "\(store.restDaysLeft) rest \(store.restDaysLeft == 1 ? "night" : "nights") saved · each covers a night out")
                     .font(Theme.font(13)).foregroundColor(Theme.muted)
                     .fixedSize(horizontal: false, vertical: true)

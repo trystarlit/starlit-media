@@ -99,7 +99,7 @@ struct OptionCard: View {
                 if let leading {
                     Image(systemName: leading).font(.system(size: 14, weight: .medium)).frame(width: 18)
                 }
-                Text(title).font(Theme.font(17)).lineLimit(1).minimumScaleFactor(0.8)
+                Text(title).font(Theme.font(17)).lineLimit(2).minimumScaleFactor(0.85).multilineTextAlignment(.leading)
                 Spacer(minLength: 8)
                 if let icon { Image(systemName: icon).font(.system(size: 17)) }
                 if tick && leading == nil {   // with an icon there's no room; the amber border shows selection
