@@ -166,7 +166,12 @@ enum TourStop: CaseIterable {
         case .sky: return "every night you keep lights a star. drag to look around, tap a star to see its night."
         case .resting: return "this is your phone at bedtime. open a resting app and it costs tonight's star."
         case .streak: return "nights kept in a row. every one lights a star in your sky."
-        case .restNights: return "night out? use a rest night and your streak stays safe. you get one every week and can save up to 3."
+        case .restNights:
+            switch UserDefaults.standard.object(forKey: "restPerWeek") as? Int ?? 1 {
+            case 0: return "no excuses mode: no rest nights, so every night counts."
+            case 2: return "night out? use a rest night and your streak stays safe. you get two every week and can save up to 3."
+            default: return "night out? use a rest night and your streak stays safe. you get one every week and can save up to 3."
+            }
         case .you: return "your bedtime, wake up and resting apps. change them anytime."
         }
     }

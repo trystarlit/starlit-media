@@ -46,6 +46,7 @@ final class Subscriptions: ObservableObject {
     /// Returns true when the user now has access. Throws a readable error; a cancel returns false.
     func purchase(annual wantsAnnual: Bool) async throws -> Bool {
         guard Config.hasRevenueCat else { return true }
+        if (wantsAnnual ? annual : monthly) == nil { await refresh() }   // offerings can still be loading on a slow connection
         guard let package = wantsAnnual ? annual : monthly else { throw SubscriptionError.notLoaded }
         Analytics.track("purchase_started", ["plan": wantsAnnual ? "yearly" : "monthly"])
         let result = try await Purchases.shared.purchase(package: package)
