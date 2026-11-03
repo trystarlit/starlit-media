@@ -214,6 +214,17 @@ enum Goal: String, CaseIterable, Identifiable {
         }
     }
 
+    /// What this goal looks like after 30 days (onboarding's "30 days from now").
+    var outcome: String {
+        switch self {
+        case .rested: return "you wake up before your alarm ☀️"
+        case .scrolling: return "no more 2am scrolling 📵"
+        case .energy: return "energy that lasts past lunch ⚡️"
+        case .focus: return "a clear head at school or work 🧠"
+        case .together: return "mornings that feel put together ✨"
+        }
+    }
+
     /// Paywall / how-it-works headline for this goal.
     var promise: String {
         switch self {

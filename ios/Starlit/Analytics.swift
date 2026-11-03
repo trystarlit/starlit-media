@@ -38,6 +38,19 @@ enum Analytics {
         guard nightsKept >= 3, !UserDefaults.standard.bool(forKey: key) else { return }
         UserDefaults.standard.set(true, forKey: key)
         track("rating_prompt_shown")
+        requestReview()
+    }
+
+    /// Ask once right after the hold-to-commit in onboarding, the moment people feel most into it.
+    @MainActor static func askForRatingAfterCommit() {
+        let key = "askedForRatingOnboarding"
+        guard !UserDefaults.standard.bool(forKey: key) else { return }
+        UserDefaults.standard.set(true, forKey: key)
+        track("rating_prompt_shown", ["when": "commit"])
+        requestReview()
+    }
+
+    @MainActor private static func requestReview() {
         guard let scene = UIApplication.shared.connectedScenes
             .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene else { return }
         AppStore.requestReview(in: scene)

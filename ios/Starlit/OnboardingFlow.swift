@@ -8,7 +8,7 @@ struct OnboardingFlow: View {
     @State private var paceChoice = 1
 
     enum Step: Int, CaseIterable {
-        case splash, name, goals, want, actual, mirror, wake, mornings, keepsUp, windDown, strict, pace, how, plan, wow, commit, paywall
+        case splash, name, goals, want, actual, mirror, wake, mornings, keepsUp, windDown, strict, pace, how, building, plan, future, wow, commit, paywall
     }
 
     var body: some View {
@@ -56,8 +56,10 @@ struct OnboardingFlow: View {
                                options: [("start slow", "🐢", 1), ("all in", "🔥", 0)],
                                value: $paceChoice,
                                next: { v in store.applyPlan(slow: v == 1); go(.how)() })
-                case .how: HowItWorksStep(next: go(.plan))
-                case .plan: PlanStep(next: go(.wow))
+                case .how: HowItWorksStep(next: go(.building))
+                case .building: BuildingPlanStep(next: go(.plan))
+                case .plan: PlanStep(next: go(.future))
+                case .future: FutureStep(next: go(.wow))
                 case .wow: WowStep(next: go(.commit))
                 case .commit: CommitStep(next: go(.paywall))
                 case .paywall: PaywallStep(finish: { store.onboarded = true })
@@ -72,7 +74,7 @@ struct OnboardingFlow: View {
             .onChange(of: step) { _, s in Analytics.onboardingStep(s.rawValue, "\(s)") }
 
             // progress bar + back (hidden on the full-bleed moments)
-            if ![Step.splash, .wow, .commit, .paywall].contains(step) {
+            if ![Step.splash, .building, .wow, .commit, .paywall].contains(step) {
                 VStack {
                     HStack(spacing: 12) {
                         Button { back() } label: {
@@ -100,6 +102,7 @@ struct OnboardingFlow: View {
     private func back() {
         guard var prev = Step(rawValue: step.rawValue - 1) else { return }
         if prev == .pace && !store.paceMakesSense { prev = .strict }   // pace was skipped
+        if prev == .building { prev = .how }   // the loader only plays going forward
         Haptics.tap()
         withAnimation(.easeOut(duration: 0.3)) { step = prev }
     }
@@ -324,6 +327,130 @@ struct PlanStep: View {
     }
 }
 
+/// "building your plan…": checks off their answers one by one, then moves on by itself.
+struct BuildingPlanStep: View {
+    @EnvironmentObject var store: UserStore
+    var next: () -> Void
+    @State private var checked = 0
+    @State private var progress = 0.0
+    @State private var gone = false
+
+    private var items: [String] {
+        let apps = store.keepsUp.sorted().prefix(2).joined(separator: " + ")
+        return [
+            "phone down at \(UserStore.clock(store.wantMinutes))",
+            "apps open at \(UserStore.clock(store.wakeMinutes))",
+            apps.isEmpty ? "resting the apps that keep you up" : "resting \(apps)",
+            store.restPerWeek == 0 ? "no excuses mode" : "\(store.restPerWeek) rest night\(store.restPerWeek == 1 ? "" : "s") a week",
+            "\(store.displayName.isEmpty ? "your" : store.displayName + "'s") sky",
+        ]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Spacer()
+            Headline("building your ", amber: "plan", "…", size: 34)
+            GeometryReader { g in
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.line)
+                    Capsule().fill(Theme.amber).frame(width: g.size.width * progress)
+                }
+            }
+            .frame(height: 6)
+            .padding(.bottom, 10)
+            ForEach(Array(items.enumerated()), id: \.offset) { i, t in
+                HStack(spacing: 12) {
+                    ZStack {
+                        Circle().stroke(checked > i ? Theme.amber : Theme.line, lineWidth: 1.5)
+                        if checked > i {
+                            Circle().fill(Theme.amber)
+                            Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundColor(Theme.night)
+                        }
+                    }
+                    .frame(width: 22, height: 22)
+                    Text(t).font(Theme.font(16)).foregroundColor(checked > i ? Theme.ivory : Theme.muted)
+                }
+                .scaleEffect(checked == i + 1 ? 1.02 : 1, anchor: .leading)
+            }
+            Spacer()
+            Spacer()
+        }
+        .onAppear {
+            withAnimation(.easeInOut(duration: 3.1)) { progress = 1 }
+            for i in 0..<5 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45 + Double(i) * 0.55) {
+                    Haptics.tap()
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { checked = i + 1 }
+                }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3.6) {
+                guard !gone else { return }
+                Haptics.success()
+                next()
+            }
+        }
+        .onDisappear { gone = true }
+    }
+}
+
+/// "30 days from now": the outcome of their goals, with a sky filling up one star a night.
+struct FutureStep: View {
+    @EnvironmentObject var store: UserStore
+    var next: () -> Void
+    @State private var start = Date()
+    @State private var shown = 0
+
+    private var lines: [String] {
+        let goals = Goal.allCases.filter { store.goals.contains($0) }
+        return Array((goals.isEmpty ? [.rested] : goals).prefix(3).map(\.outcome)) + ["30 stars in your sky ⭐️"]
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Spacer().frame(height: 40)
+            Label12("30 days from now")
+            Headline("this is ", amber: store.displayNameOrYou, " in a month.", size: 34)
+            TimelineView(.animation) { tl in
+                let t = tl.date.timeIntervalSince(start)
+                ZStack(alignment: .bottomTrailing) {
+                    Canvas { ctx, size in
+                        var r = Seeded(21)
+                        for i in 0..<30 {
+                            let x = 0.06 + r.next() * 0.88, y = 0.08 + r.next() * 0.84, s = 1.6 + r.next() * 1.8
+                            let k = min(1, max(0, (t - 0.3 - Double(i) * 0.07) / 0.35))
+                            guard k > 0 else { continue }
+                            let last = i == 29
+                            ctx.glowDot(CGPoint(x: x * size.width, y: y * size.height), r: CGFloat(s * (last ? 1.6 : 1) * k),
+                                        color: last ? Theme.amber : Theme.ivory, alpha: k * 0.9,
+                                        glowR: CGFloat(s * (last ? 9 : 4)), glowA: 0.35 * k)
+                        }
+                    }
+                    let n = min(30, max(0, Int((t - 0.3) / 0.07) + 1))
+                    (Text("night ").foregroundColor(Theme.muted) + Text("\(t < 0.3 ? 0 : n)").foregroundColor(Theme.amber))
+                        .font(Theme.font(15)).padding(12)
+                }
+            }
+            .frame(height: 220)
+            .card(22)
+            ForEach(Array(lines.enumerated()), id: \.offset) { i, l in
+                Text(l).font(Theme.font(17)).foregroundColor(Theme.ivory)
+                    .opacity(shown > i ? 1 : 0).offset(y: shown > i ? 0 : 8)
+            }
+            Spacer()
+            PrimaryButton(title: "i want that", action: next).opacity(shown >= lines.count ? 1 : 0)
+        }
+        .onAppear {
+            start = Date()
+            for i in 0..<lines.count {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 2.6 + Double(i) * 0.4) {
+                    Haptics.tap()
+                    withAnimation(.easeOut(duration: 0.4)) { shown = i + 1 }
+                }
+            }
+        }
+    }
+}
+
 struct KeepsUpStep: View {
     @EnvironmentObject var store: UserStore
     var next: () -> Void
@@ -520,6 +647,7 @@ struct CommitStep: View {
                 DispatchQueue.main.async {
                     Haptics.success()
                     withAnimation(.easeOut(duration: 0.45)) { done = true }
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { Analytics.askForRatingAfterCommit() }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) { next() }
                 }
             }
