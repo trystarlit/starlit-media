@@ -8,7 +8,7 @@ struct OnboardingFlow: View {
     @State private var paceChoice = 1
 
     enum Step: Int, CaseIterable {
-        case splash, name, goals, want, actual, mirror, wake, mornings, keepsUp, windDown, strict, pace, how, building, plan, future, wow, commit, paywall
+        case splash, name, goals, want, actual, mirror, wake, mornings, keepsUp, windDown, pace, how, building, plan, future, wow, commit, paywall
     }
 
     var body: some View {
@@ -21,12 +21,12 @@ struct OnboardingFlow: View {
                 case .goals: GoalsStep(next: go(.want))
                 case .want: TimeStep(title: ("what time do you ", "want", " to be asleep? 😴"), sub: "scroll to pick. you can change it anytime.",
                                      options: .bedtimes,
-                                     value: $store.sleepMinutes, next: go(.actual))
+                                     value: $store.sleepMinutes, next: { store.actualMinutes = store.sleepMinutes; go(.actual)() })
                 case .actual: TimeStep(title: ("and what time does it ", "actually", " happen? 👀"), sub: "be honest. nobody's judging.",
-                                       options: .times(max(18 * 60 + 30, store.sleepMinutes), 29 * 60),   // up to 5:00am
+                                       options: .times(21 * 60, 29 * 60),   // 9:00pm – 5:00am; starts on their goal time
                                        value: $store.actualMinutes, next: go(.mirror))
                 case .mirror: MirrorStep(next: go(.wake))
-                case .wake: TimeStep(title: ("what time do you need to ", "wake up", "? ⏰"), sub: "your apps open again at this time.",
+                case .wake: TimeStep(title: ("what time do you need to ", "wake up", "? ⏰"), sub: "your apps open again at this time. you can change it anytime.",
                                      options: .times(4 * 60 + 30, 11 * 60),
                                      value: $store.wakeMinutes, next: go(.mornings))
                 case .mornings: SingleChoiceStep(title: ("how do your ", "mornings", " feel right now?"),
@@ -39,14 +39,10 @@ struct OnboardingFlow: View {
                                options: [("at bedtime · \(UserStore.clock(store.sleepMinutes))", "🛏️", 0),
                                          ("30 min before · \(UserStore.clock(store.sleepMinutes - 30))", "📖", 30),
                                          ("1 hour before · \(UserStore.clock(store.sleepMinutes - 60))", "🕯️", 60)],
-                               value: $store.windDown, next: { _ in go(.strict)() })
-                case .strict:
-                    ChoiceStep(title: ("how ", "strict", " should starlit be?"),
-                               sub: "a rest night lets you skip a night without losing your streak.",
-                               options: [("go easy · 2 rest nights a week", "🌙", 2),
-                                         ("normal · 1 rest night a week", "⭐️", 1),
-                                         ("no excuses · no rest nights", "🔒", 0)],
-                               value: $store.restPerWeek,
+                               value: $store.windDown,
+                               header: { picked in
+                                   AnyView(NightTimeline(lock: store.sleepMinutes - (picked ?? 0), sleep: store.sleepMinutes, wake: store.wakeMinutes))
+                               },
                                next: { _ in
                                    if store.paceMakesSense { go(.pace)() } else { store.applyPlan(slow: false); go(.how)() }
                                })
@@ -101,7 +97,7 @@ struct OnboardingFlow: View {
 
     private func back() {
         guard var prev = Step(rawValue: step.rawValue - 1) else { return }
-        if prev == .pace && !store.paceMakesSense { prev = .strict }   // pace was skipped
+        if prev == .pace && !store.paceMakesSense { prev = .windDown }   // pace was skipped
         if prev == .building { prev = .how }   // the loader only plays going forward
         Haptics.tap()
         withAnimation(.easeOut(duration: 0.3)) { step = prev }
@@ -226,20 +222,102 @@ struct MirrorStep: View {
     var body: some View {
         let h = store.hoursLost
         let hs = h == 1 ? "1 hour" : (h.truncatingRemainder(dividingBy: 1) == 0 ? "\(Int(h)) hours" : String(format: "%.1f hours", h))
+        let close = store.actualMinutes <= store.sleepMinutes
         VStack(alignment: .leading, spacing: 14) {
             Spacer()
-            Text("every night, \(store.displayName)").font(Theme.font(15)).foregroundColor(Theme.muted)
-            Headline("that's ", amber: hs, " a night.", size: 40)
-            Text("about \(store.daysPerYear) days a year.")
-                .font(Theme.font(40)).tracking(-1.2).foregroundColor(Theme.muted)
-                .opacity(shown ? 1 : 0)
+            if close {
+                Text("nice, \(store.displayNameOrYou)").font(Theme.font(15)).foregroundColor(Theme.muted)
+                Headline("you're already ", amber: "close", ".", size: 40)
+                Text("starlit keeps it that way, even on the nights your phone pulls you back in.")
+                    .font(Theme.font(17)).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true)
+                    .opacity(shown ? 1 : 0)
+            } else {
+                Text("every night, \(store.displayName)").font(Theme.font(15)).foregroundColor(Theme.muted)
+                Headline("that's ", amber: hs, " a night.", size: 40)
+                Text("about \(store.daysPerYear) days a year.")
+                    .font(Theme.font(40)).tracking(-1.2).foregroundColor(Theme.muted)
+                    .opacity(shown ? 1 : 0)
+                YearDots(lost: store.daysPerYear, on: shown).padding(.top, 10)
+                Text("each dot is a day. the amber ones are the sleep you lose to your phone.")
+                    .font(Theme.font(13)).foregroundColor(Theme.muted).opacity(shown ? 1 : 0)
+            }
             Spacer()
-            PrimaryButton(title: "get them back", action: next)
+            PrimaryButton(title: close ? "continue" : "get them back", action: next)
         }
         .onAppear {
             Haptics.warning()
             withAnimation(.easeOut(duration: 0.8).delay(0.6)) { shown = true }
         }
+    }
+}
+
+/// Their night on one line: phone down → asleep → wake up.
+struct NightTimeline: View {
+    var lock: Int
+    var sleep: Int
+    var wake: Int
+
+    var body: some View {
+        VStack(spacing: 12) {
+            HStack {
+                point("lock", "🔒", lock, highlight: true)
+                Spacer()
+                point("asleep", "😴", sleep)
+                Spacer()
+                point("wake up", "☀️", wake)
+            }
+            GeometryReader { g in
+                let span = Double(((wake - lock) % 1440 + 1440) % 1440)
+                let sleepAt = span > 0 ? Double(((sleep - lock) % 1440 + 1440) % 1440) / span : 0
+                ZStack(alignment: .leading) {
+                    Capsule().fill(Theme.ivory.opacity(0.1))
+                    Capsule().fill(LinearGradient(colors: [Theme.amber, Theme.glow.opacity(0.35)], startPoint: .leading, endPoint: .trailing))
+                    Circle().fill(Theme.ivory).frame(width: 8, height: 8)
+                        .offset(x: max(0, g.size.width * sleepAt - 4))
+                }
+            }
+            .frame(height: 8)
+            Text("your apps rest for the whole stretch").font(Theme.font(12)).foregroundColor(Theme.muted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(16).card()
+        .animation(.easeOut(duration: 0.3), value: lock)
+    }
+
+    private func point(_ label: String, _ emoji: String, _ minutes: Int, highlight: Bool = false) -> some View {
+        VStack(spacing: 4) {
+            Text(emoji).font(.system(size: 18))
+            Text(UserStore.clock(minutes) + UserStore.ampm(minutes)).font(Theme.font(15)).monospacedDigit()
+                .foregroundColor(highlight ? Theme.amber : Theme.ivory)
+            Text(label).font(Theme.font(12)).foregroundColor(Theme.muted)
+        }
+    }
+}
+
+/// A year as 365 dots; the last `lost` light up amber, one after another.
+struct YearDots: View {
+    var lost: Int
+    var on: Bool
+    @State private var start = Date()
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: nil, paused: !on)) { tl in
+            let t = on ? tl.date.timeIntervalSince(start) : 0
+            Canvas { ctx, size in
+                let cols = 26, rows = 15
+                let step = min(size.width / CGFloat(cols), size.height / CGFloat(rows))
+                let r = step * 0.28
+                let lit = min(lost, Int(t / 0.04))
+                for i in 0..<365 {
+                    let x = (CGFloat(i % cols) + 0.5) * step, y = (CGFloat(i / cols) + 0.5) * step
+                    let amber = i >= 365 - lit
+                    ctx.fill(Path(ellipseIn: CGRect(x: x - r, y: y - r, width: r * 2, height: r * 2)),
+                             with: .color(amber ? Theme.amber : Theme.ivory.opacity(0.14)))
+                }
+            }
+        }
+        .frame(height: 190)
+        .onChange(of: on) { _, v in if v { start = Date() } }
     }
 }
 
@@ -249,6 +327,8 @@ struct ChoiceStep: View {
     var sub: String? = nil
     var options: [(label: String, emoji: String, value: Int)]
     @Binding var value: Int
+    /// Optional picture under the subtitle; gets the picked value (nil before a tap).
+    var header: ((Int?) -> AnyView)? = nil
     var next: (Int) -> Void
     @State private var picked: Int?
     var body: some View {
@@ -258,6 +338,7 @@ struct ChoiceStep: View {
             if let sub {
                 Text(sub).font(Theme.font(15)).foregroundColor(Theme.muted).fixedSize(horizontal: false, vertical: true).rise(1)
             }
+            if let header { header(picked).padding(.vertical, 10).rise(1) }
             Spacer().frame(height: 8)
             ForEach(Array(options.enumerated()), id: \.offset) { i, o in
                 OptionCard(title: "\(o.emoji)  \(o.label)", selected: picked == o.value) {
@@ -397,52 +478,42 @@ struct BuildingPlanStep: View {
 struct FutureStep: View {
     @EnvironmentObject var store: UserStore
     var next: () -> Void
-    @State private var start = Date()
     @State private var shown = 0
 
     private var lines: [String] {
         let goals = Goal.allCases.filter { store.goals.contains($0) }
-        return Array((goals.isEmpty ? [.rested] : goals).prefix(3).map(\.outcome)) + ["30 stars in your sky ⭐️"]
+        return Array((goals.isEmpty ? [.rested] : goals).prefix(3).map(\.outcome))
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Spacer().frame(height: 40)
-            Label12("30 days from now")
-            Headline("this is ", amber: store.displayNameOrYou, " in a month.", size: 34)
-            TimelineView(.animation) { tl in
-                let t = tl.date.timeIntervalSince(start)
-                ZStack(alignment: .bottomTrailing) {
-                    Canvas { ctx, size in
-                        var r = Seeded(21)
-                        for i in 0..<30 {
-                            let x = 0.06 + r.next() * 0.88, y = 0.08 + r.next() * 0.84, s = 1.6 + r.next() * 1.8
-                            let k = min(1, max(0, (t - 0.3 - Double(i) * 0.07) / 0.35))
-                            guard k > 0 else { continue }
-                            let last = i == 29
-                            ctx.glowDot(CGPoint(x: x * size.width, y: y * size.height), r: CGFloat(s * (last ? 1.6 : 1) * k),
-                                        color: last ? Theme.amber : Theme.ivory, alpha: k * 0.9,
-                                        glowR: CGFloat(s * (last ? 9 : 4)), glowA: 0.35 * k)
-                        }
-                    }
-                    let n = min(30, max(0, Int((t - 0.3) / 0.07) + 1))
-                    (Text("night ").foregroundColor(Theme.muted) + Text("\(t < 0.3 ? 0 : n)").foregroundColor(Theme.amber))
-                        .font(Theme.font(15)).padding(12)
+        VStack(alignment: .leading, spacing: 10) {
+            Spacer().frame(height: 30)
+            Label12("30 days from now").rise(0)
+            Headline(store.displayName.isEmpty ? "your " : "\(store.displayName)'s ", amber: "sky", " in a month.", size: 34).rise(1)
+            Text("30 nights kept. drag to look around.").font(Theme.font(15)).foregroundColor(Theme.muted).rise(2)
+            Spacer()
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { i, l in
+                    Text(l).font(Theme.font(17)).foregroundColor(Theme.ivory)
+                        .opacity(shown > i ? 1 : 0).offset(y: shown > i ? 0 : 8)
                 }
             }
-            .frame(height: 220)
-            .card(22)
-            ForEach(Array(lines.enumerated()), id: \.offset) { i, l in
-                Text(l).font(Theme.font(17)).foregroundColor(Theme.ivory)
-                    .opacity(shown > i ? 1 : 0).offset(y: shown > i ? 0 : 8)
-            }
-            Spacer()
-            PrimaryButton(title: "i want that", action: next).opacity(shown >= lines.count ? 1 : 0)
+            .allowsHitTesting(false)
+            PrimaryButton(title: "i want that", action: next)
+                .opacity(shown >= lines.count ? 1 : 0).padding(.top, 8)
         }
+        .background(
+            ZStack {
+                Sky3DView(nights: 30)
+                // keeps the outcome lines readable over the stars
+                LinearGradient(colors: [.clear, Theme.night.opacity(0.85)], startPoint: .center, endPoint: .bottom)
+                    .allowsHitTesting(false)
+            }
+            .padding(-40).ignoresSafeArea()
+        )
         .onAppear {
-            start = Date()
             for i in 0..<lines.count {
-                DispatchQueue.main.asyncAfter(deadline: .now() + 2.6 + Double(i) * 0.4) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.2 + Double(i) * 0.45) {
                     Haptics.tap()
                     withAnimation(.easeOut(duration: 0.4)) { shown = i + 1 }
                 }
@@ -455,7 +526,7 @@ struct KeepsUpStep: View {
     @EnvironmentObject var store: UserStore
     var next: () -> Void
     // What keeps them up, in words. The real apps get picked in Apple's picker after the paywall (the tour).
-    static let apps = ["tiktok", "instagram", "youtube", "snapchat", "texting", "games", "netflix", "x"]
+    static let apps = ["tiktok", "instagram", "youtube", "snapchat", "texting", "games", "netflix", "x", "other"]
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             Spacer().frame(height: 50)
@@ -628,6 +699,10 @@ struct CommitStep: View {
             }
             .id(done).transition(.opacity)
             Spacer()
+            // no auto-advance: Apple's rating popup may be up, and it blocks this tap until it's gone
+            if done {
+                PrimaryButton(title: "continue", action: next).transition(.opacity)
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
@@ -648,7 +723,6 @@ struct CommitStep: View {
                     Haptics.success()
                     withAnimation(.easeOut(duration: 0.45)) { done = true }
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { Analytics.askForRatingAfterCommit() }
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 2.2) { next() }
                 }
             }
         }

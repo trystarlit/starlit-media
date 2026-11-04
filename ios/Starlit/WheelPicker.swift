@@ -8,13 +8,20 @@ struct WheelPicker: View {
     private let rowH: CGFloat = 56
     private let height: CGFloat = 250
 
+    init(values: [Int], selection: Binding<Int>) {
+        self.values = values
+        self._selection = selection
+        // start on the right row from the first frame (setting it on appear sometimes landed on the last row)
+        _pos = State(initialValue: values.contains(selection.wrappedValue) ? selection.wrappedValue : values.first)
+    }
+
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: 16).fill(Theme.card)
                 .overlay(RoundedRectangle(cornerRadius: 16).stroke(Theme.line, lineWidth: 1))
                 .frame(height: rowH)
             ScrollView(.vertical, showsIndicators: false) {
-                LazyVStack(spacing: 0) {
+                VStack(spacing: 0) {   // not lazy: every row exists, so the start position always resolves
                     ForEach(values, id: \.self) { v in
                         row(v).id(v)
                             .onTapGesture { withAnimation(.easeOut(duration: 0.3)) { pos = v } }

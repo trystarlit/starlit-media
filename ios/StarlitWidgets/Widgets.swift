@@ -32,8 +32,8 @@ struct MiniLogo: View {
     var size: CGFloat
     var body: some View {
         ZStack {
-            Ring().stroke(W.ivory, style: StrokeStyle(lineWidth: size * 0.085, lineCap: .butt))
-            Circle().fill(W.amber).frame(width: size * 0.26, height: size * 0.26)
+            Ring().stroke(W.ivory, style: StrokeStyle(lineWidth: size * 0.108, lineCap: .butt))
+            Circle().fill(W.amber).frame(width: size * 0.244, height: size * 0.244)
                 .offset(x: size * 0.42 * cos(-.pi / 4), y: size * 0.42 * sin(-.pi / 4))
         }
         .frame(width: size, height: size)
@@ -43,7 +43,7 @@ struct MiniLogo: View {
         func path(in rect: CGRect) -> Path {
             var p = Path()
             p.addArc(center: CGPoint(x: rect.midX, y: rect.midY), radius: min(rect.width, rect.height) * 0.42,
-                     startAngle: .degrees(-45 + 22), endAngle: .degrees(-45 - 22 + 360), clockwise: false)
+                     startAngle: .degrees(-45.7 + 28.6), endAngle: .degrees(-45.7 - 28.6 + 360), clockwise: false)
             return p
         }
     }

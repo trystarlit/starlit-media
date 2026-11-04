@@ -29,6 +29,18 @@ struct RestingView: View {
         .background(TwinkleSky(stars: 7, seed: 21, dust: 60, height: 0.25).background(Theme.night).ignoresSafeArea())
     }
 
+    private func restCard(_ icon: String, _ label: String, _ value: String) -> some View {
+        HStack(spacing: 10) {
+            Image(systemName: icon).font(.system(size: 15)).foregroundColor(Theme.amber)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(label).font(Theme.font(12)).foregroundColor(Theme.muted)
+                Text(value).font(Theme.font(17)).monospacedDigit().foregroundColor(Theme.ivory)
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(14).card(18)
+    }
+
     private func content(now: Int, progress p: Double, left: Int) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -37,23 +49,41 @@ struct RestingView: View {
                 (Text("● ").foregroundColor(Theme.amber) + Text("resting")).font(Theme.font(12)).tracking(0.3).foregroundColor(Theme.muted)
             }
             ZStack {
-                Circle().stroke(Theme.ivory.opacity(0.1), lineWidth: 5)
-                Circle().trim(from: 0, to: CGFloat(p)).stroke(Theme.ivory, lineWidth: 5).rotationEffect(.degrees(-90))
-                GeometryReader { g in
-                    let r = Double(g.size.width) / 2, a = (-90 + 360 * p) * Double.pi / 180
-                    Circle().fill(Theme.amber).frame(width: 18, height: 18)
-                        .shadow(color: Theme.glow.opacity(0.8), radius: 12)
-                        .position(x: CGFloat(r + r * cos(a)), y: CGFloat(r + r * sin(a)))
+                // dial ticks, one per 15 minutes of the night
+                ForEach(0..<48, id: \.self) { i in
+                    Capsule().fill(Theme.ivory.opacity(i % 4 == 0 ? 0.3 : 0.12))
+                        .frame(width: 2, height: i % 4 == 0 ? 10 : 6)
+                        .offset(y: -150)
+                        .rotationEffect(.degrees(Double(i) * 7.5))
                 }
-                VStack(spacing: 4) {
-                    Text(UserStore.clock(now)).font(Theme.font(64, .light)).tracking(-3).monospacedDigit().foregroundColor(Theme.ivory)
+                Circle().stroke(Theme.ivory.opacity(0.08), lineWidth: 18).padding(22)
+                Circle().trim(from: 0, to: CGFloat(p))
+                    .stroke(AngularGradient(colors: [Theme.glow.opacity(0.5), Theme.amber, Theme.ivory],
+                                            center: .center, startAngle: .degrees(0), endAngle: .degrees(360 * max(p, 0.01))),
+                            style: StrokeStyle(lineWidth: 18, lineCap: .round))
+                    .rotationEffect(.degrees(-90)).padding(22)
+                    .shadow(color: Theme.glow.opacity(0.35), radius: 14)
+                GeometryReader { g in
+                    let r = Double(g.size.width) / 2 - 22, c = Double(g.size.width) / 2, a = (-90 + 360 * p) * Double.pi / 180
+                    Circle().fill(Theme.night).frame(width: 26, height: 26)
+                        .overlay(Circle().fill(Theme.amber).frame(width: 14, height: 14).shadow(color: Theme.glow, radius: 10))
+                        .position(x: CGFloat(c + r * cos(a)), y: CGFloat(c + r * sin(a)))
+                }
+                VStack(spacing: 6) {
+                    Label12("resting")
+                    Text(UserStore.clock(now)).font(Theme.font(64, .light)).monospacedDigit().foregroundColor(Theme.ivory)
                     Text("\(left / 60)h \(String(format: "%02d", left % 60))m until \(UserStore.clock(store.wakeMinutes))")
                         .font(Theme.font(15)).foregroundColor(Theme.muted)
                 }
             }
-            .frame(width: 236, height: 236)
+            .frame(width: 310, height: 310)
             .frame(maxWidth: .infinity)
-            .padding(.top, 30)
+            .padding(.top, 18)
+            HStack(spacing: 10) {
+                restCard("moon.fill", "lights out", UserStore.clock(store.wantMinutes) + UserStore.ampm(store.wantMinutes))
+                restCard("sun.max.fill", "wake up", UserStore.clock(store.wakeMinutes) + UserStore.ampm(store.wakeMinutes))
+            }
+            .padding(.top, 6)
             Spacer()
             Label12("resting till morning · tap one")
             if store.screenTimeOK && store.restingCount > 0 {
@@ -186,11 +216,12 @@ struct MorningView: View {
             Headline("you kept your ", amber: "night", ", \(store.displayNameOrYou).", size: 36).rise(1)
             HStack(spacing: 10) {
                 // the scheduled window, not measured screen time. swap in real Screen Time data once Family Controls lands
-                stat(restWindow, "rest window")
-                stat("\(store.nightsKept + 1)", "nights kept")
+                stat(restWindow, "rest window", icon: "moon.zzz.fill")
+                stat("\(store.nightsKept + 1)", store.nightsKept == 0 ? "night kept" : "nights kept", icon: "star.fill", amber: true)
             }
             .padding(.top, 8).rise(2)
             Spacer()
+            ShareStreakButton(streak: store.streak + 1).rise(3)
             PrimaryButton(title: "see your sky", action: seeSky).rise(3)
         }
         .padding(.horizontal, 26).padding(.vertical, 14)
@@ -209,12 +240,14 @@ struct MorningView: View {
         return "\(len / 60)h \(String(format: "%02d", len % 60))m"
     }
 
-    private func stat(_ v: String, _ k: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(v).font(Theme.font(26)).foregroundColor(Theme.ivory)
-            Text(k).font(Theme.font(12)).foregroundColor(Theme.muted)
+    private func stat(_ v: String, _ k: String, icon: String, amber: Bool = false) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: icon).font(.system(size: 15)).foregroundColor(Theme.amber)
+            Text(v).font(Theme.font(40, .light)).tracking(-1).monospacedDigit()
+                .foregroundColor(amber ? Theme.amber : Theme.ivory).minimumScaleFactor(0.6).lineLimit(1)
+            Text(k).font(Theme.font(14)).foregroundColor(Theme.muted)
         }
-        .frame(maxWidth: .infinity, alignment: .leading).padding(14).card(20)
+        .frame(maxWidth: .infinity, alignment: .leading).padding(18).card(24)
     }
 }
 
@@ -246,7 +279,7 @@ struct StreakView: View {
                 .shadow(color: Theme.glow.opacity(0.45), radius: 24)
                 .offset(y: floatUp ? -6 : 0)
             Text("\(shown)")
-                .font(Theme.font(120)).tracking(-7).monospacedDigit()
+                .font(Theme.font(120)).monospacedDigit()   // negative tracking clipped the last digit
                 .foregroundColor(Theme.amber)
                 .shadow(color: Theme.glow.opacity(0.45), radius: 30)
                 .contentTransition(.numericText(value: Double(shown)))
@@ -256,6 +289,7 @@ struct StreakView: View {
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
                 .padding(.top, 26)
             Spacer()
+            if store.streak > 0 { ShareStreakButton(streak: store.streak).padding(.bottom, 4) }
             PrimaryButton(title: "keep it going", action: close)
         }
         .padding(.horizontal, 26).padding(.top, 14).padding(.bottom, 10)

@@ -47,7 +47,7 @@ final class UserStore: ObservableObject {
         name = d.string(forKey: "name") ?? ""
         goals = Set((d.stringArray(forKey: "goals") ?? []).compactMap(Goal.init(rawValue:)))
         wantMinutes = d.object(forKey: "wantMinutes") as? Int ?? 23 * 60
-        sleepMinutes = d.object(forKey: "sleepMinutes") as? Int ?? d.object(forKey: "wantMinutes") as? Int ?? 23 * 60
+        sleepMinutes = d.object(forKey: "sleepMinutes") as? Int ?? d.object(forKey: "wantMinutes") as? Int ?? 22 * 60 + 30
         windDown = d.object(forKey: "windDown") as? Int ?? 0
         restPerWeek = d.object(forKey: "restPerWeek") as? Int ?? 1
         paceTarget = d.integer(forKey: "paceTarget")
@@ -147,7 +147,7 @@ final class UserStore: ObservableObject {
 
     func reset() {
         onboarded = false; name = ""; goals = []; mornings = ""; keepsUp = []; nightsKept = 0; streak = 0; bestStreak = 0; restDaysLeft = 1; restedDays = []; touredApp = false
-        windDown = 0; restPerWeek = 1; paceTarget = 0
+        windDown = 0; restPerWeek = 1; paceTarget = 0; sleepMinutes = 22 * 60 + 30
     }
 
     /// A night was kept: one more star, streak +1.

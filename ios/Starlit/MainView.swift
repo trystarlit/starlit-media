@@ -55,7 +55,7 @@ struct MainView: View {
                         show(.streak(justKept: true))
                     }
                 case .you:
-                    YouTab(preview: { show($0) }, report: { stopRects[.you] = $0 })
+                    YouTab(preview: { show($0) }, openSky: { switchTo(.sky) }, report: { stopRects[.you] = $0 })
                 }
             }
             .id(tab)
@@ -463,7 +463,108 @@ struct SkyTab: View {
 struct YouTab: View {
     @EnvironmentObject var store: UserStore
     var preview: (Moment) -> Void
+    var openSky: () -> Void = {}
     var report: (CGRect) -> Void = { _ in }
+    @State private var settings = false
+
+    private var hoursBack: Int { Int(Double(store.nightsKept) * store.hoursLost) }
+
+    var body: some View {
+        ScrollView(showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(store.displayNameOrYou).font(Theme.font(34)).tracking(-1).foregroundColor(Theme.ivory)
+                        Text(store.topGoal.label).font(Theme.font(15)).foregroundColor(Theme.muted)
+                    }
+                    Spacer()
+                    Button { Haptics.tap(); settings = true } label: {
+                        Image(systemName: "gearshape").font(.system(size: 18, weight: .medium)).foregroundColor(Theme.ivory)
+                            .frame(width: 44, height: 44).background(Circle().fill(.ultraThinMaterial))
+                            .overlay(Circle().stroke(Theme.line, lineWidth: 1))
+                    }
+                    .buttonStyle(PressStyle())
+                    .accessibilityLabel("settings")
+                }
+                .rise(0)
+
+                Button { Haptics.tap(); openSky() } label: { skyCard }
+                    .buttonStyle(PressStyle())
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
+                    .rise(1)
+
+                HStack(spacing: 10) {
+                    bigStat("\(max(store.bestStreak, store.streak))", "best streak", icon: "flame.fill")
+                    // estimate from their own onboarding answers, so it's labelled as one
+                    bigStat("~\(hoursBack)h", "hours back, est.", icon: "clock.arrow.circlepath")
+                }
+                .rise(2)
+
+                HStack(spacing: 14) {
+                    RestNightsSaved().scaleEffect(1.3).frame(width: 66)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(store.restDaysLeft == 1 ? "1 rest night saved" : "\(store.restDaysLeft) rest nights saved")
+                            .font(Theme.font(16)).foregroundColor(Theme.ivory)
+                        Text("for nights out. you get \(store.restPerWeek == 1 ? "one" : "\(store.restPerWeek)") every monday.")
+                            .font(Theme.font(13)).foregroundColor(Theme.muted)
+                    }
+                    Spacer(minLength: 0)
+                }
+                .padding(16).card()
+                .rise(3)
+
+                Label12("your goals").padding(.top, 6)
+                FlowChips(items: (store.goals.isEmpty ? [.rested] : Goal.allCases.filter { store.goals.contains($0) }).map(\.label))
+            }
+            .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 110)
+        }
+        .sheet(isPresented: $settings) {
+            SettingsSheet(preview: { m in
+                settings = false
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { preview(m) }
+            })
+            .environmentObject(store)
+        }
+        .onAppear { store.refreshRestDays() }
+    }
+
+    private var skyCard: some View {
+        ZStack(alignment: .bottomLeading) {
+            RoundedRectangle(cornerRadius: 30)
+                .fill(RadialGradient(colors: [Color(red: 42/255, green: 34/255, blue: 25/255), Color(red: 21/255, green: 18/255, blue: 15/255)],
+                                     center: UnitPoint(x: 0.5, y: 1.2), startRadius: 0, endRadius: 420))
+            TwinkleSky(stars: store.nightsKept, seed: 41, dust: 70, height: 0.45)
+            VStack(alignment: .leading, spacing: 0) {
+                Text("\(store.nightsKept)").font(Theme.font(88, .light)).monospacedDigit().foregroundColor(Theme.amber)
+                    .shadow(color: Theme.glow.opacity(0.4), radius: 20)
+                Text(store.nightsKept == 1 ? "night kept" : "nights kept").font(Theme.font(20)).foregroundColor(Theme.ivory)
+                Text(store.nightsKept == 1 ? "1 star in your sky ›" : "\(store.nightsKept) stars in your sky ›")
+                    .font(Theme.font(14)).foregroundColor(Theme.muted).padding(.top, 4)
+            }
+            .padding(22)
+        }
+        .frame(height: 250)
+        .clipShape(RoundedRectangle(cornerRadius: 30))
+        .overlay(RoundedRectangle(cornerRadius: 30).stroke(Theme.line, lineWidth: 1))
+    }
+
+    private func bigStat(_ v: String, _ k: String, icon: String) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Image(systemName: icon).font(.system(size: 15)).foregroundColor(Theme.amber)
+            Text(v).font(Theme.font(40, .light)).tracking(-1).monospacedDigit().foregroundColor(Theme.ivory)
+                .minimumScaleFactor(0.6).lineLimit(1)
+            Text(k).font(Theme.font(13)).foregroundColor(Theme.muted)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(18).card(24)
+    }
+}
+
+/// Everything adjustable, behind the gear on the you tab.
+struct SettingsSheet: View {
+    @EnvironmentObject var store: UserStore
+    var preview: (Moment) -> Void
+    @Environment(\.dismiss) private var dismiss
     @State private var sheet: TonightTab.SheetKind?
     @State private var confirmDelete = false
     @State private var liveCountdown = LiveBedtime.enabled
@@ -473,24 +574,12 @@ struct YouTab: View {
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 14) {
-                HStack(spacing: 14) {
-                    Text(String(store.displayNameOrYou.prefix(1))).font(Theme.font(22)).foregroundColor(Theme.amber)
-                        .frame(width: 56, height: 56).background(Circle().fill(Theme.card2))
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(store.displayNameOrYou).font(Theme.font(24)).foregroundColor(Theme.ivory)
-                        Text(store.topGoal.label).font(Theme.font(15)).foregroundColor(Theme.muted)
-                    }
+                HStack {
+                    Text("settings").font(Theme.font(24)).foregroundColor(Theme.ivory)
+                    Spacer()
+                    Button("done") { dismiss() }.font(Theme.font(16, .medium)).foregroundColor(Theme.amber)
                 }
-                .rise(0)
-                HStack(spacing: 10) {
-                    stat("\(store.nightsKept)", "nights kept")
-                    stat("\(max(store.bestStreak, store.streak))", "best streak")
-                    // estimate from their own onboarding answers, so it's labelled as one
-                    stat("~\(Int(Double(store.nightsKept) * store.hoursLost))h", "hours back, est.")
-                }
-                .rise(1)
-                Label12("your goals").padding(.top, 8)
-                FlowChips(items: (store.goals.isEmpty ? [.rested] : Goal.allCases.filter { store.goals.contains($0) }).map(\.label))
+                .padding(.top, 26)
                 Label12("settings").padding(.top, 8)
                 VStack(spacing: 0) {
                     row("bedtime", "\(UserStore.clock(store.wantMinutes))\(UserStore.ampm(store.wantMinutes))") { sheet = .bed }
@@ -503,7 +592,6 @@ struct YouTab: View {
                     }
                 }
                 .card()
-                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
                 Label12("more").padding(.top, 8)
                 VStack(spacing: 0) {
                     row("app tour", "›") { store.touredApp = false }
@@ -524,8 +612,11 @@ struct YouTab: View {
                 .card()
                 #endif
             }
-            .padding(.horizontal, 22).padding(.top, 12).padding(.bottom, 110)
+            .padding(.horizontal, 22).padding(.bottom, 30)
         }
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .presentationBackground(Color(red: 28/255, green: 25/255, blue: 21/255))
         .sheet(item: $sheet) { k in
             switch k {
             case .bed: TimeSheet(title: "bedtime", values: .bedtimes, value: $store.wantMinutes, note: Lock.guarded() ? "it's close to bedtime, so a later bedtime starts tomorrow night. earlier works right away." : nil)
@@ -533,7 +624,6 @@ struct YouTab: View {
             case .apps: AppsSheet().environmentObject(store)
             }
         }
-        .onAppear { store.refreshRestDays() }
         .alert("delete my data?", isPresented: $confirmDelete) {
             Button("delete", role: .destructive) {
                 Task {
@@ -551,15 +641,6 @@ struct YouTab: View {
         } message: {
             Text("check your connection and try again.")
         }
-    }
-
-    private func stat(_ v: String, _ k: String) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(v).font(Theme.font(26)).tracking(-0.8).foregroundColor(Theme.ivory)
-            Text(k).font(Theme.font(12)).foregroundColor(Theme.muted)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(14).card(20)
     }
 
     /// A settings row. Without `tap` it's plain info, not a button.

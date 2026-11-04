@@ -59,10 +59,10 @@ private struct WelcomeStep: View {
             Label12("you're in").padding(.top, 10).rise(1)
             Headline("welcome to ", amber: "starlit", ", \(store.displayNameOrYou).", size: 34)
                 .multilineTextAlignment(.center).rise(2)
-            Text("your sky starts tonight. a quick setup, then we'll show you around.")
+            Text("your sky starts tonight. first, pick the apps that rest at bedtime. then we'll show you around.")
                 .font(Theme.font(16)).foregroundColor(Theme.muted).multilineTextAlignment(.center).rise(3)
             Spacer()
-            PrimaryButton(title: "let's go", action: next).rise(4)
+            PrimaryButton(title: "set up my apps", action: next).rise(4)
         }
         .onAppear {
             Haptics.success()
@@ -118,7 +118,7 @@ private struct TourAppsStep: View {
                                     : "tap to change. you can edit this anytime.")
                 .font(Theme.font(15)).foregroundColor(Theme.muted).padding(.bottom, 8).rise(1)
             ScrollView(showsIndicators: false) { RestingAppsPicker() }.rise(2)
-            PrimaryButton(title: "continue", enabled: store.restingCount > 0, action: next).rise(3)
+            PrimaryButton(title: "show me around", enabled: store.restingCount > 0, action: next).rise(3)
         }
     }
 }
@@ -172,7 +172,7 @@ enum TourStop: CaseIterable {
             case 2: return "night out? use a rest night and your streak stays safe. you get two every week and can save up to 3."
             default: return "night out? use a rest night and your streak stays safe. you get one every week and can save up to 3."
             }
-        case .you: return "your bedtime, wake up and resting apps. change them anytime."
+        case .you: return "your nights, streak and hours back live here. bedtime, apps and the rest are behind the gear."
         }
     }
 
@@ -221,7 +221,7 @@ struct Spotlight: View {
     private func spotlit(_ rect: CGRect, in geo: GeometryProxy) -> some View {
         let origin = geo.frame(in: .global).origin
         let r = rect.offsetBy(dx: -origin.x, dy: -origin.y).insetBy(dx: -6, dy: -6)
-        let radius = stop == .skyCard ? 34 : stop == .restNow ? r.height / 2 : 26
+        let radius = stop == .skyCard || stop == .you ? 34 : stop == .restNow ? r.height / 2 : 26
         let above = r.midY > geo.size.height / 2
         let captionWidth = min(360, geo.size.width - side * 2)
         let captionMinX = (geo.size.width - captionWidth) / 2

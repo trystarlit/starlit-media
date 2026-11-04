@@ -11,11 +11,11 @@ struct OrbitLogo: View {
         ZStack {
             OrbitRing()
                 .trim(from: 0, to: progress)
-                .stroke(ringColor, style: StrokeStyle(lineWidth: size * 0.085, lineCap: .butt))
+                .stroke(ringColor, style: StrokeStyle(lineWidth: size * 0.108, lineCap: .butt))   // brand/app-icon.svg proportions
             if starVisible {
                 Circle()
                     .fill(Theme.amber)
-                    .frame(width: size * 0.26, height: size * 0.26)
+                    .frame(width: size * 0.244, height: size * 0.244)
                     .shadow(color: Theme.glow.opacity(0.7), radius: size * 0.12)
                     .offset(x: size * 0.42 * cos(-.pi / 4), y: size * 0.42 * sin(-.pi / 4))
                     .transition(.scale.combined(with: .opacity))
@@ -29,7 +29,7 @@ struct OrbitRing: Shape {
     func path(in rect: CGRect) -> Path {
         let r = min(rect.width, rect.height) * 0.42
         let c = CGPoint(x: rect.midX, y: rect.midY)
-        let star = -45.0, gap = 22.0
+        let star = -45.7, gap = 28.6   // matches brand/app-icon.svg
         var p = Path()
         p.addArc(center: c, radius: r,
                  startAngle: .degrees(star + gap),

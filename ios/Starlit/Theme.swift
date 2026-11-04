@@ -164,6 +164,8 @@ enum Links {
     /// Lives on the waitlist site (source: site/deploy/privacy/ in the starlit-context folder). Live once that folder is deployed.
     static let privacy = URL(string: "https://trystarlit.netlify.app/privacy/")!
     static let contact = URL(string: "mailto:starlitapp.hq@gmail.com")!
+    /// Where shared streak cards point. Swap for the App Store link once starlit is live.
+    static let share = URL(string: "https://trystarlit.netlify.app")!
 }
 
 struct PressStyle: ButtonStyle {
